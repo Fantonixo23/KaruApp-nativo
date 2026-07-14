@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+.env
+*.env
+backend/datos.db
+backend/licencia_cache.json
+backend/licencia_config.json
+*.db
+.DS_Store
+Thumbs.db
