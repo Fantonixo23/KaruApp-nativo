@@ -330,7 +330,7 @@ class VerificarLicenciaMiddleware:
             if path.startswith(prefix.rstrip('/')):
                 return self.get_response(request)
 
-        licencia = license_manager.verificar(force_refresh=True)
+        licencia = license_manager.verificar()
 
         if licencia['estado'] in ('bloqueada', 'expirado') or licencia.get('bloqueado'):
             return JsonResponse({
