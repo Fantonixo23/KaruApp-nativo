@@ -113,9 +113,19 @@ python manage.py crear_usuarios
 echo [OK] Usuarios creados.
 cd ..
 
-:: --- 6. Registrar en servidor de licencias ---
+:: --- 6. Generar certificados QZ Tray ---
 echo.
-echo [6/7] Registrando en servidor de licencias...
+echo [6/7] Generando certificados para impresion termica (QZ Tray)...
+python generar_certificados_qz.py
+if %errorlevel% neq 0 (
+    echo [WARN] No se pudieron generar los certificados.
+) else (
+    echo [OK] Certificados generados.
+)
+
+:: --- 7. Registrar en servidor de licencias ---
+echo.
+echo [7/8] Registrando en servidor de licencias...
 cd backend
 python _registrar_licencia.py
 if %errorlevel% neq 0 (
@@ -127,9 +137,9 @@ if %errorlevel% neq 0 (
 del _registrar_licencia.py >nul 2>&1
 cd ..
 
-:: --- 7. Iniciar servidor ---
+:: --- 8. Iniciar servidor ---
 echo.
-echo [7/7] Iniciando servidor...
+echo [8/8] Iniciando servidor...
 echo.
 echo ============================================
 echo    Instalacion completada con exito

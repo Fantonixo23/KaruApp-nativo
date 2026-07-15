@@ -22,10 +22,10 @@ def pedidos_cocina(request):
         estado_filtro = request.GET.get('estado')
         buscar = request.GET.get('buscar', '').strip()
         
-        query = Q(created_at__gte=hoy_inicio) & Q(estado__in=['pendiente', 'cocinando', 'listo'])
+        query = Q(estado__in=['pendiente', 'cocinando', 'listo'])
         
         if estado_filtro and estado_filtro != 'todo':
-            query = Q(created_at__gte=hoy_inicio) & Q(estado=estado_filtro)
+            query = Q(estado=estado_filtro)
         
         pedidos = Pedido.objects.select_related('mesa', 'mesero').filter(query).order_by('-created_at')
         

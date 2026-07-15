@@ -3,15 +3,25 @@ import os
 import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from printer_utils import listar_impresoras, detectar_impresora_termica, imprimir_texto
-from escpos_builder import build_comanda, build_cuenta, build_factura, build_test_page, get_chars_per_line
+from escpos_builder import build_comanda, build_cuenta, build_factura, build_test_page
 
 HOST = '0.0.0.0'
 PORT = 5123
-TOKEN = os.environ.get('PRINT_API_TOKEN')
 MAX_RETRIES = 3
 RETRY_DELAY = 1
+
+TOKEN = os.environ.get('PRINT_API_TOKEN')
 if not TOKEN:
-    raise RuntimeError('PRINT_API_TOKEN no configurada. Defínala como variable de entorno.')
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.env')
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('PRINT_API_TOKEN='):
+                    TOKEN = line.split('=', 1)[1]
+                    break
+if not TOKEN:
+    TOKEN = 'pipper-print-token-default'
 
 
 class PrintHandler(BaseHTTPRequestHandler):
@@ -81,6 +91,8 @@ class PrintHandler(BaseHTTPRequestHandler):
                 return self._print_factura(body)
             elif self.path == '/print/test':
                 return self._print_test(body)
+            elif self.path == '/print/raw':
+                return self._print_raw(body)
             else:
                 self._json({'error': 'not found'}, 404)
         except Exception as e:
@@ -105,6 +117,10 @@ class PrintHandler(BaseHTTPRequestHandler):
             return 'normal'
         return size if size in ('pequeno', 'normal', 'grande') else 'normal'
 
+    def _get_paper_size(self, body):
+        ps = body.get('paper_size', '80mm')
+        return ps if ps in ('58mm', '80mm') else '80mm'
+
     def _print_with_retry(self, printer, escpos):
         last_error = None
         for attempt in range(MAX_RETRIES):
@@ -120,26 +136,29 @@ class PrintHandler(BaseHTTPRequestHandler):
     def _print_comanda(self, body):
         printer = self._get_printer(body)
         size = self._get_size(body)
+        paper_width = self._get_paper_size(body)
         pedido = body.get('pedido', {})
         negocio = body.get('negocio', {})
-        escpos = build_comanda(pedido, negocio, size)
+        escpos = build_comanda(pedido, negocio, size, paper_width)
         self._print_with_retry(printer, escpos)
-        self._json({'success': True, 'impresora': printer, 'tamano': size})
+        self._json({'success': True, 'impresora': printer, 'tamano': size, 'paper_size': paper_width})
 
     def _print_cuenta(self, body):
         printer = self._get_printer(body)
         size = self._get_size(body)
+        paper_width = self._get_paper_size(body)
         pedidos = body.get('pedidos', [])
         negocio = body.get('negocio', {})
         mesa = body.get('mesa', '')
         mesero_nombre = body.get('mesero_nombre', '')
-        escpos = build_cuenta(pedidos, negocio, size, mesa, mesero_nombre)
+        escpos = build_cuenta(pedidos, negocio, size, mesa, mesero_nombre, paper_width)
         self._print_with_retry(printer, escpos)
-        self._json({'success': True, 'impresora': printer, 'tamano': size})
+        self._json({'success': True, 'impresora': printer, 'tamano': size, 'paper_size': paper_width})
 
     def _print_factura(self, body):
         printer = self._get_printer(body)
         size = self._get_size(body)
+        paper_width = self._get_paper_size(body)
         pedido = body.get('pedido', {})
         negocio = body.get('negocio', {})
         cliente = body.get('cliente', {})
@@ -152,16 +171,27 @@ class PrintHandler(BaseHTTPRequestHandler):
         pedido['vuelto'] = body.get('vuelto', pedido.get('vuelto', 0))
         pedido['propina'] = body.get('propina', pedido.get('propina', 0))
         pedido['monto_recibido'] = body.get('monto_recibido', pedido.get('monto_recibido', 0))
-        escpos = build_factura(pedido, negocio, cliente, size, qr_base64)
+        escpos = build_factura(pedido, negocio, cliente, size, qr_base64, paper_width)
         self._print_with_retry(printer, escpos)
-        self._json({'success': True, 'impresora': printer, 'tamano': size})
+        self._json({'success': True, 'impresora': printer, 'tamano': size, 'paper_size': paper_width})
 
     def _print_test(self, body):
         printer = self._get_printer(body)
         size = self._get_size(body)
-        escpos = build_test_page(printer, size)
+        paper_width = self._get_paper_size(body)
+        escpos = build_test_page(printer, size, paper_width)
         self._print_with_retry(printer, escpos)
-        self._json({'success': True, 'impresora': printer, 'tamano': size})
+        self._json({'success': True, 'impresora': printer, 'tamano': size, 'paper_size': paper_width})
+
+    def _print_raw(self, body):
+        import base64
+        printer = self._get_printer(body)
+        raw_b64 = body.get('data', '')
+        if not raw_b64:
+            raise Exception('No se recibieron datos ESC/POS')
+        escpos = base64.b64decode(raw_b64)
+        self._print_with_retry(printer, escpos)
+        self._json({'success': True, 'impresora': printer})
 
     def log_message(self, format, *args):
         print(f'[PrintServer] {args[0]} {args[1]} {args[2]}')
@@ -176,6 +206,7 @@ if __name__ == '__main__':
     print(f'   POST /print/cuenta  - Imprimir cuenta mesa')
     print(f'   POST /print/factura - Imprimir factura')
     print(f'   POST /print/test    - Pagina de prueba')
+    print(f'   POST /print/raw     - ESC/POS crudo (base64)')
     server = HTTPServer((HOST, PORT), PrintHandler)
     try:
         server.serve_forever()

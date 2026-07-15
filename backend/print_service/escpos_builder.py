@@ -110,8 +110,9 @@ def text_line(txt, align='left', bold=False, double=False, font='A'):
         cmd += font_a()
     return cmd
 
-def build_comanda(pedido, negocio=None, size='normal'):
-    chars = get_chars_per_line(size)
+def build_comanda(pedido, negocio=None, size='normal', paper_width='80mm'):
+    chars = get_chars_per_line(size, paper_width)
+    font = get_font_for_size(size, paper_width)
     lines = []
     lines.append(init())
     lines.append(center())
@@ -120,7 +121,7 @@ def build_comanda(pedido, negocio=None, size='normal'):
     lines.append(font_normal())
     lines.append(('#' + str(pedido.get('numero_orden', '')).zfill(4) + '\n').encode('cp1252', errors='replace'))
     lines.append(left())
-    lines.append(font_b() if size == 'pequeno' else font_a())
+    lines.append(font_b() if font == 'B' else font_a())
 
     lines.append(separator('-', chars))
 
@@ -192,8 +193,9 @@ def build_comanda(pedido, negocio=None, size='normal'):
     return b''.join(lines)
 
 
-def build_cuenta(pedidos, negocio=None, size='normal', mesa='', mesero_nombre=''):
-    chars = get_chars_per_line(size)
+def build_cuenta(pedidos, negocio=None, size='normal', mesa='', mesero_nombre='', paper_width='80mm'):
+    chars = get_chars_per_line(size, paper_width)
+    font = get_font_for_size(size, paper_width)
     lines = []
     lines.append(init())
 
@@ -202,7 +204,7 @@ def build_cuenta(pedidos, negocio=None, size='normal', mesa='', mesero_nombre=''
     lines.append((negocio.get('nombre', 'RESTAURANTE') + '\n').encode('cp1252', errors='replace') if negocio else b'RESTAURANTE\n')
     lines.append(font_normal())
     lines.append(left())
-    lines.append(font_b() if size == 'pequeno' else font_a())
+    lines.append(font_b() if font == 'B' else font_a())
 
     if negocio and negocio.get('ruc'):
         lines.append(('RUC: ' + negocio['ruc'] + '\n').encode('cp1252', errors='replace'))
@@ -312,15 +314,16 @@ def calcular_iva(items):
             iva10 += total_item * 0.10
     return subtotal, iva10, iva5
 
-def build_factura(pedido, negocio=None, cliente=None, size='normal', qr_base64=None):
-    chars = get_chars_per_line(size)
+def build_factura(pedido, negocio=None, cliente=None, size='normal', qr_base64=None, paper_width='80mm'):
+    chars = get_chars_per_line(size, paper_width)
+    font = get_font_for_size(size, paper_width)
     lines = []
     lines.append(init())
 
     cdc = pedido.get('cdc', '') or ''
     kude = pedido.get('kude', '') or ''
     es_fiscal = bool(cdc)
-    use_font_b = size == 'pequeno'
+    use_font_b = font == 'B'
     p9 = 9
     desc_max = chars - 5 - 10 - 2
 
@@ -489,8 +492,8 @@ def build_factura(pedido, negocio=None, cliente=None, size='normal', qr_base64=N
 
     return b''.join(lines)
 
-def build_test_page(nombre_impresora, size='normal'):
-    chars = get_chars_per_line(size)
+def build_test_page(nombre_impresora, size='normal', paper_width='80mm'):
+    chars = get_chars_per_line(size, paper_width)
     lines = []
     lines.append(init())
     lines.append(center())
@@ -538,13 +541,22 @@ def format_guarani(n):
     except (ValueError, TypeError):
         return str(n)
 
-def get_chars_per_line(size):
-    sizes = {
-        'pequeno': 48,
-        'normal': 42,
-        'grande': 20,
+def get_chars_per_line(size, paper_width='80mm'):
+    widths = {
+        '58mm': {'pequeno': 42, 'normal': 32, 'grande': 16},
+        '80mm': {'pequeno': 64, 'normal': 48, 'grande': 24},
     }
+    pw = widths.get(paper_width, widths['80mm'])
     if isinstance(size, dict):
-        return size.get('custom_width', 42)
-    return sizes.get(size, 42)
+        return size.get('custom_width', pw['normal'])
+    return pw.get(size, pw['normal'])
+
+
+def get_font_for_size(size, paper_width='80mm'):
+    widths = {
+        '58mm': {'pequeno': 'B', 'normal': 'A', 'grande': 'A'},
+        '80mm': {'pequeno': 'B', 'normal': 'A', 'grande': 'A'},
+    }
+    pw = widths.get(paper_width, widths['80mm'])
+    return pw.get(size, 'A')
 

@@ -51,6 +51,12 @@ class Configuracion(models.Model):
         max_length=255, default='Venta al por menor en comercios no especializados',
         help_text='Descripción de la actividad económica'
     )
+    tamano_papel = models.CharField(
+        max_length=4,
+        choices=[('58mm', '58mm'), ('80mm', '80mm')],
+        default='58mm',
+        help_text='Tamaño de papel para impresión térmica'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

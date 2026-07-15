@@ -41,7 +41,8 @@ def get_config(request):
             'punto_expedicion': config.punto_expedicion or '001',
             'estado': config.estado,
             'fecha_inicio': config.fecha_inicio.isoformat() if config.fecha_inicio else None,
-            'fecha_vencimiento': config.fecha_vencimiento.isoformat() if config.fecha_vencimiento else None
+            'fecha_vencimiento': config.fecha_vencimiento.isoformat() if config.fecha_vencimiento else None,
+            'tamano_papel': config.tamano_papel or '58mm'
         }
     })
 
@@ -69,6 +70,7 @@ def update_config(request):
             config.timbrado_numero = data.get('timbrado_numero', config.timbrado_numero)
             config.establecimiento = data.get('establecimiento', config.establecimiento)
             config.punto_expedicion = data.get('punto_expedicion', config.punto_expedicion)
+            config.tamano_papel = data.get('tamano_papel', config.tamano_papel)
             config.save()
         
         return JsonResponse({
