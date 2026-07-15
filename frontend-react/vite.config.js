@@ -5,6 +5,11 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  base: '/',
+  build: {
+    outDir: '../backend/frontend',
+    emptyOutDir: true,
+  },
   server: {
     port: 5173,
     host: true,
