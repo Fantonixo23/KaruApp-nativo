@@ -9,53 +9,47 @@ from .licencia import license_manager
 from django.conf import settings
 
 
+def _es_ip_virtual(ip):
+    try:
+        p = [int(x) for x in ip.split('.')]
+        if len(p) != 4:
+            return True
+        if p[0] == 127:
+            return True
+        if p[0] == 169 and p[1] == 254:
+            return True
+        if p[0] == 172 and 16 <= p[1] <= 31:
+            return True
+        if p[0] == 10:
+            return True
+    except (ValueError, IndexError):
+        return True
+    return False
+
 def _get_local_ips():
-    """Devuelve las IPs reales de la PC, ignorando adaptadores virtuales (Docker, Hyper-V, etc)"""
+    """Devuelve las IPs reales de la PC, ignorando adaptadores virtuales"""
     hostname = socket.gethostname()
-    ips_reales = []
+    todas = set()
     try:
         result = subprocess.run(['ipconfig'], capture_output=True, text=True, timeout=5)
-        lines = result.stdout.split('\n')
-        current_has_gateway = False
-        current_ip = None
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith('Ethernet adapter') or stripped.startswith('Wireless LAN adapter') or stripped.startswith('Unknown adapter'):
-                if current_ip and current_has_gateway:
-                    ips_reales.append(current_ip)
-                current_ip = None
-                current_has_gateway = False
-                continue
-            ip_match = re.search(r'IPv4[^:]*:\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', stripped)
-            if ip_match:
-                current_ip = ip_match.group(1)
-                continue
-            gw_match = re.search(r'Default Gateway[^:]*:\s*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)', stripped)
-            if gw_match:
-                current_has_gateway = True
-        if current_ip and current_has_gateway:
-            ips_reales.append(current_ip)
+        for ip in re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', result.stdout):
+            if not _es_ip_virtual(ip):
+                todas.add(ip)
     except Exception:
         pass
-    if not ips_reales:
+    if not todas:
         try:
-            ips_reales = [socket.gethostbyname(hostname)]
+            ip = socket.gethostbyname(hostname)
+            if not _es_ip_virtual(ip):
+                todas.add(ip)
         except Exception:
-            ips_reales = ['127.0.0.1']
-        ips_reales = [ip for ip in ips_reales if not ip.startswith('127.')]
-    final = []
-    for ip in ips_reales:
-        partes = ip.split('.')
-        if len(partes) == 4:
-            try:
-                primero = int(partes[0])
-                segundo = int(partes[1])
-                if primero == 172 and 17 <= segundo <= 31:
-                    continue
-            except ValueError:
-                pass
-        final.append(ip)
-    return final if final else ['127.0.0.1']
+            pass
+    ordenadas = sorted(todas, key=lambda ip: (
+        0 if ip.startswith('192.168.') else
+        1 if ip.startswith('172.') else
+        2 if ip.startswith('10.') else 3
+    ))
+    return ordenadas if ordenadas else ['127.0.0.1']
 
 
 def info_empresa(request):
