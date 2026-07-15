@@ -457,7 +457,7 @@ export default function Delivery() {
                 {['pendiente', 'cocinando', 'listo', 'en_camino'].map(key => {
                   const value = ESTADOS[key]
                   const count = pedidos.filter(p => p.estado === key).length
-                  return count > 0 ? (
+                  return (
                     <button 
                       key={key}
                       onClick={() => setFiltroEstado(key)}
@@ -469,7 +469,7 @@ export default function Delivery() {
                     >
                       {value.label} ({count})
                     </button>
-                  ) : null
+                  )
                 })}
                 {/* Historial de entregados - abre modal */}
                 {pedidos.filter(p => p.estado === 'entregado').length > 0 && (
