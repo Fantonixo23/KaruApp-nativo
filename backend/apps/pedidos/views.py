@@ -248,6 +248,7 @@ def dashboard_delivery(request):
     pendientes = pedidos_hoy.filter(estado='pendiente').count()
     preparando = pedidos_hoy.filter(estado='cocinando').count()
     listos = pedidos_hoy.filter(estado='listo').count()
+    en_camino = pedidos_hoy.filter(estado='en_camino').count()
     entregados = pedidos_hoy.filter(estado='entregado').count()
     cancelados = pedidos_hoy.filter(estado='cancelado').count()
     
@@ -271,6 +272,7 @@ def dashboard_delivery(request):
             'pendientes': pendientes,
             'preparando': preparando,
             'listos': listos,
+            'en_camino': en_camino,
             'entregados': entregados,
             'cancelados': cancelados,
             'total_hoy': str(total_hoy),
