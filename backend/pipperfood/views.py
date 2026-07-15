@@ -9,47 +9,54 @@ from .licencia import license_manager
 from django.conf import settings
 
 
-def _es_ip_virtual(ip):
-    try:
-        p = [int(x) for x in ip.split('.')]
-        if len(p) != 4:
-            return True
-        if p[0] == 127:
-            return True
-        if p[0] == 169 and p[1] == 254:
-            return True
-        if p[0] == 172 and 16 <= p[1] <= 31:
-            return True
-        if p[0] == 10:
-            return True
-    except (ValueError, IndexError):
-        return True
-    return False
-
 def _get_local_ips():
-    """Devuelve las IPs reales de la PC, ignorando adaptadores virtuales"""
-    hostname = socket.gethostname()
-    todas = set()
+    """Devuelve la IP real de la PC conectada a la red local"""
+    ip = None
     try:
-        result = subprocess.run(['ipconfig'], capture_output=True, text=True, timeout=5)
-        for ip in re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', result.stdout):
-            if not _es_ip_virtual(ip):
-                todas.add(ip)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(1)
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+        s.close()
     except Exception:
         pass
-    if not todas:
-        try:
-            ip = socket.gethostbyname(hostname)
-            if not _es_ip_virtual(ip):
-                todas.add(ip)
-        except Exception:
-            pass
-    ordenadas = sorted(todas, key=lambda ip: (
-        0 if ip.startswith('192.168.') else
-        1 if ip.startswith('172.') else
-        2 if ip.startswith('10.') else 3
-    ))
-    return ordenadas if ordenadas else ['127.0.0.1']
+    if ip and not ip.startswith('127.'):
+        return [ip]
+    hostname = socket.gethostname()
+    try:
+        for info in socket.getaddrinfo(hostname, None):
+            if info[0] == socket.AF_INET:
+                addr = info[4][0]
+                if not addr.startswith('127.'):
+                    return [addr]
+    except Exception:
+        pass
+    try:
+        result = subprocess.run(['ipconfig'], capture_output=True, text=True, timeout=5)
+        todas = set(re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', result.stdout))
+        gateways = set()
+        for line in result.stdout.split('\n'):
+            ips_linea = re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', line)
+            for gw_ip in ips_linea:
+                partes = gw_ip.split('.')
+                if partes[3] in ('1', '254'):
+                    gateways.add(gw_ip)
+        for ip_raw in todas:
+            partes = ip_raw.split('.')
+            if len(partes) != 4:
+                continue
+            try:
+                p = [int(x) for x in partes]
+            except ValueError:
+                continue
+            if p[0] == 127 or p[0] == 0 or (p[0] == 169 and p[1] == 254):
+                continue
+            if ip_raw in gateways:
+                continue
+            return [ip_raw]
+    except Exception:
+        pass
+    return ['127.0.0.1']
 
 
 def info_empresa(request):
