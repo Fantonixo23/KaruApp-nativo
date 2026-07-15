@@ -66,8 +66,7 @@ export default function Caja() {
   const [loadingSession, setLoadingSession] = useState(true)
   const [showApertura, setShowApertura] = useState(false)
   const [fondoInicial, setFondoInicial] = useState('')
-  const [usuarios, setUsuarios] = useState([])
-  const [usuarioCaja, setUsuarioCaja] = useState(null)
+
 
   // Mesas & cobro
   const [mesas, setMesas] = useState([])
@@ -248,7 +247,7 @@ export default function Caja() {
       const res = await fetch(`${API_URL}/caja/apertura`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fondo_inicial: fondo, usuario_id: usuarioCaja?.id })
+        body: JSON.stringify({ fondo_inicial: fondo })
       })
       const data = await res.json()
       if (data.success) {
@@ -292,7 +291,6 @@ export default function Caja() {
 
   useEffect(() => {
     initDarkMode(); verificarSesion(); cargarDatosEmpresa()
-    fetch(`${API_URL}/usuarios`).then(r => r.json()).then(d => { if (d.success) setUsuarios(d.usuarios || []) }).catch(() => {})
   }, [])
   useEffect(() => {
     const t = setInterval(() => setHora(new Date()), 1000)
@@ -512,17 +510,7 @@ export default function Caja() {
           <span className="material-icons" style={{ fontSize: '64px', color: '#FF9800', marginBottom: '16px' }}>point_of_sale</span>
           <h2 style={{ color: 'white', fontSize: '24px', margin: '0 0 6px' }}>Apertura de Caja</h2>
           <p style={{ color: '#aaa', fontSize: '14px', margin: '0 0 24px' }}>Ingrese el fondo inicial para comenzar el turno</p>
-
-          <div style={{ marginBottom: '16px', textAlign: 'left' }}>
-            <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Cajero</label>
-            <select value={usuarioCaja?.id || ''} onChange={e => {
-              const u = usuarios.find(u => u.id === parseInt(e.target.value))
-              setUsuarioCaja(u || null)
-            }} style={{ width: '100%', padding: '14px', border: '2px solid #444', borderRadius: '12px', background: '#3a3a3a', color: 'white', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}>
-              <option value="">Seleccionar cajero...</option>
-              {usuarios.map(u => <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>)}
-            </select>
-          </div>
+ 
           <div style={{ marginBottom: '20px', textAlign: 'left' }}>
             <label style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px', display: 'block' }}>Fondo Inicial (Gs.)</label>
             <input type="text" inputMode="numeric" placeholder="0" value={formatearNumero(fondoInicial)} onChange={handleMontoChange(setFondoInicial)}
