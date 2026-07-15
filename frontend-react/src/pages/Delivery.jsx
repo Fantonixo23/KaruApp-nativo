@@ -28,13 +28,13 @@ const estilosAnimados = `
 `
 
 const ESTADOS = {
-  pendiente: { color: '#FBC02D', label: 'Pendiente', icono: 'schedule', emoji: '⏳' },
-  cocinando: { color: '#1976D2', label: 'Preparando', icon: 'restaurant', emoji: '👨‍🍳' },
-  listo: { color: '#4CAF50', label: 'Listo para Entregar', icon: 'check_circle', emoji: '✅' },
-  en_camino: { color: '#FF9800', label: 'En Camino', icon: 'local_shipping', emoji: '🚴' },
-  entregado: { color: '#7B1FA2', label: 'Entregado', icon: 'done_all', emoji: '🎉' },
-  cancelado: { color: '#E53935', label: 'Cancelado', icon: 'cancel', emoji: '❌' },
-  pagado: { color: '#00BCD4', label: 'Pagado', icon: 'payments', emoji: '💰' }
+  pendiente: { color: '#FBC02D', label: 'Pendiente', icono: 'schedule' },
+  cocinando: { color: '#1976D2', label: 'Preparando', icon: 'restaurant' },
+  listo: { color: '#4CAF50', label: 'Listo para Entregar', icon: 'check_circle' },
+  en_camino: { color: '#FF9800', label: 'En Camino', icon: 'local_shipping' },
+  entregado: { color: '#7B1FA2', label: 'Entregado', icon: 'done_all' },
+  cancelado: { color: '#E53935', label: 'Cancelado', icon: 'cancel' },
+  pagado: { color: '#00BCD4', label: 'Pagado', icon: 'payments' }
 }
 
 export default function Delivery() {
@@ -386,12 +386,12 @@ export default function Delivery() {
   }
 
   const kpis = dashboard ? [
-    { label: '⏳ Pendientes', valor: dashboard.pendientes, color: '#FBC02D', estado: 'pendiente' },
-    { label: '👨‍🍳 Preparando', valor: dashboard.preparando, color: '#1976D2', estado: 'cocinando' },
-    { label: '✅ Listos', valor: dashboard.listos, color: '#4CAF50', estado: 'listo' },
-    { label: '🚴 En Camino', valor: dashboard.en_camino, color: '#FF9800', estado: 'en_camino' },
-    { label: '🎉 Entregados', valor: dashboard.entregados, color: '#7B1FA2', estado: 'entregado' },
-    { label: '💰 Hoy', valor: formatGuarani(dashboard.total_hoy || 0), color: '#00BCD4', esMoneda: true }
+    { label: 'Pendientes', valor: dashboard.pendientes, color: '#FBC02D', estado: 'pendiente' },
+    { label: 'Preparando', valor: dashboard.preparando, color: '#1976D2', estado: 'cocinando' },
+    { label: 'Listos', valor: dashboard.listos, color: '#4CAF50', estado: 'listo' },
+    { label: 'En Camino', valor: dashboard.en_camino, color: '#FF9800', estado: 'en_camino' },
+    { label: 'Entregados', valor: dashboard.entregados, color: '#7B1FA2', estado: 'entregado' },
+    { label: 'Hoy', valor: formatGuarani(dashboard.total_hoy || 0), color: '#00BCD4', esMoneda: true }
   ] : []
 
   return (
@@ -451,7 +451,7 @@ export default function Delivery() {
                   onClick={() => setFiltroEstado('todos')}
                   style={{ ...s.filtro(darkMode, filtroEstado === 'todos'), background: filtroEstado === 'todos' ? 'rgba(76, 175, 80, 0.4)' : undefined }}
                 >
-                  📋 Activos ({pedidos.filter(p => !['entregado', 'pagado', 'cancelado'].includes(p.estado)).length})
+                  Activos ({pedidos.filter(p => !['entregado', 'pagado', 'cancelado'].includes(p.estado)).length})
                 </button>
                 {/* Estados activos - solo pendientes, preparándose, listos, en camino */}
                 {['pendiente', 'cocinando', 'listo', 'en_camino'].map(key => {
@@ -467,7 +467,7 @@ export default function Delivery() {
                         borderLeft: `3px solid ${value.color}`
                       }}
                     >
-                      {value.emoji} {value.label} ({count})
+                      {value.label} ({count})
                     </button>
                   ) : null
                 })}
@@ -484,7 +484,7 @@ export default function Delivery() {
                       opacity: filtroEstado === 'entregado' ? 0.5 : 1
                     }}
                   >
-                    🎉 Entregados ({pedidos.filter(p => p.estado === 'entregado').length})
+                    Entregados ({pedidos.filter(p => p.estado === 'entregado').length})
                   </button>
                 )}
               </div>
@@ -507,7 +507,7 @@ export default function Delivery() {
                           #{pedido.numero_orden || pedido.id}
                         </span>
                         <span style={s.estadoBadge(pedido.estado)}>
-                          {ESTADOS[pedido.estado]?.emoji} {ESTADOS[pedido.estado]?.label}
+                          {ESTADOS[pedido.estado]?.label}
                         </span>
                       </div>
                       <span className="material-icons" style={{ fontSize: '24px', color: ESTADOS[pedido.estado]?.color }}>
@@ -520,10 +520,10 @@ export default function Delivery() {
                         {pedido.nombre_cliente || 'Cliente'}
                       </p>
                       <p style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666', margin: '4px 0' }}>
-                        📞 {pedido.telefono_cliente || 'Sin teléfono'}
+                        Tel: {pedido.telefono_cliente || 'Sin teléfono'}
                       </p>
                       <p style={{ fontSize: '13px', color: darkMode ? '#888' : '#999', margin: 0 }}>
-                        📍 {pedido.direccion || 'Sin dirección'}
+                        Dir: {pedido.direccion || 'Sin dirección'}
                       </p>
                     </div>
 
@@ -573,7 +573,7 @@ export default function Delivery() {
                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
                           }}
                         >
-                          ✏️ Editar
+                          Editar
                         </button>
                         <button 
                           onClick={(e) => {
@@ -586,7 +586,7 @@ export default function Delivery() {
                             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
                           }}
                         >
-                          ❌ Cancelar
+                          Cancelar
                         </button>
                       </div>
                     )}
@@ -638,14 +638,14 @@ export default function Delivery() {
           <div style={{ ...s.modal(darkMode), maxWidth: '95%', width: '800px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2 style={{ fontSize: '24px', fontWeight: '800', color: darkMode ? '#fff' : '#333', margin: 0 }}>
-                {editandoPedido ? '✏️ Editar Pedido' : '🏍️ Nuevo Pedido Delivery'}
+                {editandoPedido ? 'Editar Pedido' : 'Nuevo Pedido Delivery'}
               </h2>
               <button onClick={cerrarModal} style={{ background: 'none', border: 'none', fontSize: '28px', cursor: 'pointer', color: darkMode ? '#fff' : '#333' }}>×</button>
             </div>
 
             {/* DATOS DEL CLIENTE */}
             <div style={{ marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>👤 Datos del Cliente</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>Datos del Cliente</h3>
               <input 
                 type="text" 
                 placeholder="Nombre del cliente *" 
@@ -677,7 +677,7 @@ export default function Delivery() {
 
             {/* CATÁLOGO DE PRODUCTOS */}
             <div style={{ marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>📦 Seleccionar Productos</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>Seleccionar Productos</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
                 {productos.map((producto) => (
                   <div
@@ -693,7 +693,9 @@ export default function Delivery() {
                     {producto.imagen ? (
                       <img src={producto.imagen} alt={producto.nombre} style={{ width: '100%', height: '70px', objectFit: 'cover', background: darkMode ? '#2a2a2a' : '#f0f2f5' }} />
                     ) : (
-                      <div style={{ width: '100%', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#2a2a2a' : '#f0f2f5', fontSize: '24px' }}>🍽️</div>
+                      <div style={{ width: '100%', height: '70px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#2a2a2a' : '#f0f2f5', fontSize: '24px' }}>
+                        <span className="material-icons" style={{ opacity: 0.3, fontSize: '32px' }}>restaurant</span>
+                      </div>
                     )}
                     {producto.variantes?.length > 0 && (
                       <div style={{ position: 'absolute', top: '4px', right: '4px', width: '18px', height: '18px', borderRadius: '50%', background: '#FF9800', color: 'white', fontSize: '10px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>V</div>
@@ -715,7 +717,7 @@ export default function Delivery() {
               marginBottom: '20px'
             }}>
               <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>
-                🛒 Carrito ({carrito.length} items)
+                Carrito ({carrito.length} items)
               </h3>
               {carrito.length === 0 ? (
                 <p style={{ color: darkMode ? '#888' : '#666', textAlign: 'center' }}>Agregue productos del catálogo</p>
@@ -726,7 +728,7 @@ export default function Delivery() {
                       <div>
                         <span style={{ fontWeight: '600' }}>{item.producto_nombre}</span>
                         {item.variante && <div style={{ fontSize: '10px', color: '#FF9800' }}>+ {item.variante}</div>}
-                        {item.nota && <div style={{ fontSize: '10px', color: darkMode ? '#aaa' : '#888', fontStyle: 'italic' }}>📝 {item.nota}</div>}
+                        {item.nota && <div style={{ fontSize: '10px', color: darkMode ? '#aaa' : '#888', fontStyle: 'italic' }}>Nota: {item.nota}</div>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button onClick={() => quitarDelCarrito(item.producto_id, item.variante)} style={{ width: '28px', height: '28px', border: 'none', borderRadius: '6px', background: '#E53935', color: 'white', cursor: 'pointer' }}>-</button>
@@ -756,7 +758,7 @@ export default function Delivery() {
                 width: '100%'
               }}
             >
-              {guardando ? '⏳ Guardando...' : (editandoPedido ? '💾 Guardar cambios' : '➕ Crear este pedido')}
+              {guardando ? 'Guardando...' : (editandoPedido ? 'Guardar cambios' : 'Crear este pedido')}
             </button>
           </div>
         </div>
@@ -922,28 +924,28 @@ export default function Delivery() {
           <div className="no-print" style={s.modal(darkMode)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: '800', color: darkMode ? '#fff' : '#333', margin: 0 }}>
-                  📋#{modalDetalle.numero_orden || modalDetalle.id}
-                </h2>
+                  <h2 style={{ fontSize: '24px', fontWeight: '800', color: darkMode ? '#fff' : '#333', margin: 0 }}>
+                    #{modalDetalle.numero_orden || modalDetalle.id}
+                  </h2>
                 <span style={s.estadoBadge(modalDetalle.estado)}>
-                  {ESTADOS[modalDetalle.estado]?.emoji} {ESTADOS[modalDetalle.estado]?.label}
+                  {ESTADOS[modalDetalle.estado]?.label}
                 </span>
               </div>
               <button onClick={() => setModalDetalle(null)} style={{ background: 'none', border: 'none', fontSize: '28px', cursor: 'pointer', color: darkMode ? '#fff' : '#333' }}>×</button>
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>👤 Cliente</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>Cliente</h3>
               <p style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 5px 0' }}>{modalDetalle.nombre_cliente}</p>
-              <p style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666', margin: '0' }}>📞 {modalDetalle.telefono_cliente}</p>
-              <p style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666', margin: '5px 0 0 0' }}>📍 {modalDetalle.direccion}</p>
+              <p style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666', margin: '0' }}>Tel: {modalDetalle.telefono_cliente}</p>
+              <p style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666', margin: '5px 0 0 0' }}>Dir: {modalDetalle.direccion}</p>
               {modalDetalle.notas && (
-                <p style={{ fontSize: '13px', color: '#FF9800', margin: '10px 0 0 0', fontStyle: 'italic' }}>📝 {modalDetalle.notas}</p>
+                <p style={{ fontSize: '13px', color: '#FF9800', margin: '10px 0 0 0', fontStyle: 'italic' }}>Nota: {modalDetalle.notas}</p>
               )}
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>📦 Items</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#43A047', marginBottom: '12px' }}>Items</h3>
               <div style={{ background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: '12px', padding: '15px' }}>
                 {modalDetalle.items?.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', paddingBottom: '8px', borderBottom: i < modalDetalle.items.length - 1 ? `1px solid ${darkMode ? '#333' : '#eee'}` : 'none' }}>
@@ -986,7 +988,7 @@ export default function Delivery() {
                     opacity: imprimiendo ? 0.6 : 1
                   }}
                 >
-                  {imprimiendo ? '⏳ Imprimiendo...' : '🖨️ Imprimir'}
+                  {imprimiendo ? 'Imprimiendo...' : 'Imprimir'}
                 </button>
                 <button
                   onClick={() => {
@@ -1005,7 +1007,7 @@ export default function Delivery() {
                     cursor: 'pointer'
                   }}
                 >
-                  ❌ Cancelar Pedido
+                  Cancelar Pedido
                 </button>
               </div>
             )}
