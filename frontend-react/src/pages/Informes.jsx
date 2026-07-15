@@ -57,6 +57,7 @@ export default function Informes() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
 
   const [periodo, setPeriodo] = useState('hoy')
   const [resumen, setResumen] = useState(null)
@@ -401,15 +402,15 @@ export default function Informes() {
           }}>
             🎫 Historial
           </button>
-          <FullscreenButton />
+          {!isMobile && <FullscreenButton />}
           <button onClick={toggleDarkMode} style={s.btn}><span className="material-icons">{darkMode ? 'dark_mode' : 'light_mode'}</span></button>
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '70px 1fr', height: 'calc(100vh - 64px)', overflow: 'hidden', paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/informes" />
         
-        <div style={{ padding: '25px', overflowY: 'auto', overflowX: 'hidden' }}>
+        <div style={{ padding: isMobile ? '12px' : '25px', overflowY: 'auto', overflowX: 'hidden' }}>
           {cargando ? (
             <div style={{ textAlign: 'center', padding: '100px', color: darkMode ? '#888' : '#666' }}>
               <div style={{ width: '80px', height: '80px', margin: '0 auto', border: '4px solid #eee', borderTop: '4px solid #1976D2', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>

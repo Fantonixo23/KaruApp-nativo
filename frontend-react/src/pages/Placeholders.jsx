@@ -10,6 +10,7 @@ const createPlaceholder = (title, color, icon, activeRoute) => {
     const toggleDarkMode = useStore((state) => state.toggleDarkMode)
     const initDarkMode = useStore((state) => state.initDarkMode)
     const syncDarkMode = useStore((state) => state.syncDarkMode)
+    const isMobile = useStore((state) => state.isMobile)
 
     useEffect(() => {
       initDarkMode()
@@ -34,9 +35,9 @@ const createPlaceholder = (title, color, icon, activeRoute) => {
             <button onClick={toggleDarkMode} style={styles.btn}>{darkMode ? '🌙' : '☀️'}</button>
           </div>
         </header>
-        <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', height: 'calc(100vh - 64px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '70px 1fr', height: 'calc(100vh - 64px)', paddingBottom: isMobile ? '60px' : '0' }}>
           <Sidebar activePath={activeRoute} />
-          <div style={{ padding: '20px' }}>
+          <div style={{ padding: isMobile ? '12px' : '20px' }}>
             <div style={{ textAlign: 'center', padding: '60px', color: darkMode ? '#666' : '#888' }}>
               <span className="material-icons" style={{ fontSize: '60px', color: darkMode ? '#ccc' : '#333' }}>{icon}</span>
               <p style={{ marginTop: '16px', color: darkMode ? '#666' : '#888' }}>Página en construcción</p>

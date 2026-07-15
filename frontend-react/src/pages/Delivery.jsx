@@ -42,6 +42,7 @@ export default function Delivery() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
 
   const [dashboard, setDashboard] = useState(null)
   const [pedidos, setPedidos] = useState([])
@@ -414,10 +415,10 @@ export default function Delivery() {
         </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/delivery" />
         
-        <div style={{ padding: '20px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ padding: isMobile ? '12px' : '20px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: isMobile ? '12px' : '20px' }}>
           {cargando ? (
             <div style={{ textAlign: 'center', padding: '100px' }}>
               <div style={{ width: '60px', height: '60px', margin: '0 auto', border: '4px solid #43A047', borderTop: '4px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
@@ -612,7 +613,7 @@ export default function Delivery() {
               <button
                 onClick={() => setModalNuevo(true)}
                 style={{
-                  position: 'fixed', bottom: '30px', right: '30px',
+                  position: 'fixed', bottom: isMobile ? '75px' : '30px', right: isMobile ? '16px' : '30px',
                   width: '60px', height: '60px', borderRadius: '50%',
                   background: 'linear-gradient(135deg, #4CAF50, #388E3C)',
                   color: 'white', border: 'none',
@@ -921,7 +922,14 @@ export default function Delivery() {
             </div>
           </div>
 
-          <div className="no-print" style={s.modal(darkMode)}>
+          <div className="no-print" style={{
+            ...s.modal(darkMode),
+            width: isMobile ? '100%' : s.modal(darkMode).width,
+            maxWidth: isMobile ? '100%' : s.modal(darkMode).maxWidth,
+            height: isMobile ? '100%' : 'auto',
+            maxHeight: isMobile ? '100%' : s.modal(darkMode).maxHeight,
+            borderRadius: isMobile ? '0' : s.modal(darkMode).borderRadius,
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
                   <h2 style={{ fontSize: '24px', fontWeight: '800', color: darkMode ? '#fff' : '#333', margin: 0 }}>

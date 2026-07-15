@@ -19,6 +19,7 @@ export default function Configuracion() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
 
   useEffect(() => { initDarkMode(); syncDarkMode() }, [])
 
@@ -194,7 +195,7 @@ export default function Configuracion() {
         </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/configuracion" />
         <div style={{ flex: 1, overflow: 'auto' }}>
           <div style={s.content}>

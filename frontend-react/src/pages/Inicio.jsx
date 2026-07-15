@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { getApiUrl } from '../utils/api'
 import { formatGuarani } from '../utils/currency'
+import Sidebar from '../components/Sidebar'
 
 const API_URL = getApiUrl()
 
@@ -121,7 +122,7 @@ export default function Inicio() {
         </div>
       </header>
 
-      <div style={{ padding: '70px 20px 20px', maxWidth: '700px', margin: '0 auto' }}>
+      <div style={{ padding: isMobile ? '60px 12px 80px' : '70px 20px 20px', maxWidth: '700px', margin: '0 auto' }}>
         <h2 style={{ fontSize: '22px', fontWeight: '700', margin: '20px 0 4px', color: darkMode ? '#fff' : '#1a1a1a' }}>
           {saludo}
         </h2>
@@ -130,7 +131,7 @@ export default function Inicio() {
         </p>
 
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '10px', marginBottom: '24px' }}>
             <div style={{
               borderRadius: '14px', padding: '14px', textAlign: 'center',
               border: '1px solid rgba(76,175,80,0.25)',
@@ -158,7 +159,7 @@ export default function Inicio() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
           {ALL_AREAS.filter(area => !isMobile || !MOBILE_HIDDEN_MODULES.includes(area.modulo)).map((area, i) => (
             <Link key={i} to={area.path} style={{
               borderRadius: '14px', padding: '18px 10px',
@@ -250,7 +251,7 @@ export default function Inicio() {
         </div>
       </div>
 
-      <div style={{ position: 'fixed', bottom: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 50 }}>
+      <div style={{ position: 'fixed', bottom: isMobile ? '70px' : '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 50 }}>
         <a href="https://wa.me/595992609484?text=Hola!%20tengo%20dudas%20o%20problemas%20con%20el%20sistema.%20%20Muchas%20gracias" target="_blank" rel="noopener noreferrer" style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', textDecoration: 'none', boxShadow: '0 4px 12px rgba(37,211,102,0.3)' }}>
           <span className="material-icons" style={{ fontSize: '22px' }}>chat</span>
         </a>
@@ -295,6 +296,7 @@ export default function Inicio() {
           </div>
         </>
       )}
+      {isMobile && <Sidebar activePath="/app/inicio" />}
     </div>
   )
 }

@@ -10,9 +10,11 @@ import Inventario from './pages/Inventario'
 import Configuracion from './pages/Configuracion'
 import { Config, Mesero, ParaLlevar, Admin } from './pages/Placeholders'
 import { FullscreenProvider } from './hooks/useFullscreen.jsx'
+import { useMediaQuery } from './hooks/useMediaQuery'
 import LicenseBanner from './components/LicenseBanner'
 
 export default function App() {
+  useMediaQuery()
   return (
     <FullscreenProvider>
       <LicenseBanner />

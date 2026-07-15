@@ -26,8 +26,10 @@ const getInitialLicense = () => {
 export const useStore = create((set, get) => ({
   darkMode: getInitialDarkMode(),
   license: getInitialLicense(),
-  isMobile: window.innerWidth < 768,
-  
+  isMobile: typeof window !== 'undefined' && window.innerWidth < 768,
+
+  setIsMobile: (val) => set({ isMobile: val }),
+
   toggleDarkMode: () => {
     const newMode = !get().darkMode
     localStorage.setItem('darkMode', newMode)

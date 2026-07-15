@@ -53,6 +53,7 @@ export default function Caja() {
   const darkMode = useStore((s) => s.darkMode)
   const toggleDarkMode = useStore((s) => s.toggleDarkMode)
   const initDarkMode = useStore((s) => s.initDarkMode)
+  const isMobile = useStore((s) => s.isMobile)
 
   const [hora, setHora] = useState(new Date())
 
@@ -558,17 +559,22 @@ export default function Caja() {
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF9800', lineHeight: 1.2 }}>{horaStr}</div>
             <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>{fechaStr}</div>
           </div>
-          <FullscreenButton />
+          {!isMobile && <FullscreenButton />}
           <span className="material-icons" style={{ color: '#aaa', cursor: 'pointer' }} onClick={toggleDarkMode}>dark_mode</span>
 
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', height: 'calc(100vh - 64px)', overflow: 'hidden' }}>
+      <div style={{
+          display: 'grid',
+          height: 'calc(100vh - 64px)', overflow: 'hidden',
+          gridTemplateColumns: isMobile ? '1fr' : '70px 1fr',
+          paddingBottom: isMobile ? '60px' : '0',
+        }}>
         <Sidebar activePath="/app/caja" />
         <div style={st.content}>
         {/* TARJETAS RESUMEN */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
           <div style={{ ...st.card, borderLeft: '4px solid #4CAF50' }}>
             <p style={{ color: '#888', fontSize: '11px', margin: '0 0 4px' }}>EFECTIVO</p>
             <p style={{ color: darkMode ? '#81C784' : '#2E7D32', fontSize: '18px', fontWeight: '700', margin: 0 }}>{formatGuarani(sTotales.ventas_efectivo || 0)}</p>
@@ -1086,7 +1092,7 @@ export default function Caja() {
             </div>
 
             {/* Filtros */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : '1fr 1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
               <input type="text" placeholder="Cliente" value={buscarCliente} onChange={e => setBuscarCliente(e.target.value)} style={st.input} />
               <div style={{ position: 'relative' }}>
                 <input type="text" placeholder="RUC" value={buscarRucInput} onChange={e => { setBuscarRucInput(e.target.value); buscarRucReimpresion(e.target.value) }}
@@ -1126,7 +1132,7 @@ export default function Caja() {
                   {buscando ? 'Buscando...' : 'Use los filtros y haga clic en Buscar'}
                 </div>
               ) : (
-                <>
+                <div style={{ minWidth: isMobile ? '600px' : 'auto' }}>
                   {/* Header tabla */}
                   <div style={{ display: 'grid', gridTemplateColumns: '80px 100px 1fr 100px 100px 60px', padding: '8px 12px', background: darkMode ? '#2a2a2a' : '#f5f5f5', fontSize: '11px', fontWeight: '700', color: darkMode ? '#aaa' : '#666', borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}` }}>
                     <span>Fecha</span>
@@ -1181,7 +1187,7 @@ export default function Caja() {
                       )}
                     </div>
                   ))}
-                </>
+                </div>
               )}
             </div>
 

@@ -27,6 +27,7 @@ export default function NuevaVenta() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
   const [modalCrear, setModalCrear] = useState(false)
   const [modalEditar, setModalEditar] = useState(false)
   const [modalOcupar, setModalOcupar] = useState(false)
@@ -342,7 +343,7 @@ export default function NuevaVenta() {
       }
     },
     panel: (dm) => ({
-      position: 'fixed', top: '60px', right: panelAbierto ? '0' : '-340px',
+      position: 'fixed', top: '60px', right: panelAbierto ? '-20px' : '-400px',
       width: '320px', height: 'calc(100vh - 60px)',
       background: dm ? '#1a1a1a' : 'white',
       borderLeft: `1px solid ${dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
@@ -403,7 +404,7 @@ export default function NuevaVenta() {
           <h1 style={s.title}>Mesas</h1>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <FullscreenButton />
+          {!isMobile && <FullscreenButton />}
           <button onClick={toggleDarkMode} style={s.btnHeader}>
             <span className="material-icons" style={{ fontSize: '20px' }}>{darkMode ? 'light_mode' : 'dark_mode'}</span>
           </button>
@@ -412,7 +413,7 @@ export default function NuevaVenta() {
 
       {error && <div style={s.error}><span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '6px' }}>error_outline</span>{error}</div>}
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 60px)', position: 'relative' }}>
+      <div style={{ display: 'flex', height: 'calc(100vh - 60px)', position: 'relative', paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/mesas" />
 
         {vista === 'pedido' ? (
@@ -462,7 +463,15 @@ export default function NuevaVenta() {
 
         {/* PANEL LATERAL */}
         {vista === 'mesas' && (
-          <div style={s.panel(darkMode)}>
+          <div style={{
+            ...s.panel(darkMode),
+            width: isMobile ? '100%' : '320px',
+            top: isMobile ? '0' : '60px',
+            height: isMobile ? '100%' : 'calc(100vh - 60px)',
+            zIndex: isMobile ? 1200 : 100,
+            borderLeft: isMobile ? 'none' : undefined,
+            boxShadow: isMobile ? 'none' : undefined,
+          }}>
             {mesaSeleccionada && (
               <>
                 <div style={{ padding: '20px', borderBottom: `1px solid ${darkMode ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`, flexShrink: 0 }}>
@@ -601,7 +610,7 @@ export default function NuevaVenta() {
 
       {vista === 'mesas' && (
         <>
-          <div style={{ position: 'fixed', bottom: '20px', left: '90px', display: 'flex', gap: '8px', zIndex: 200 }}>
+          <div style={{ position: 'fixed', bottom: isMobile ? '70px' : '20px', left: isMobile ? '12px' : '90px', display: 'flex', gap: '8px', zIndex: 200 }}>
             <button onClick={() => setModalCrear(true)} style={s.btnAction('#4CAF50', false)}>
               <span className="material-icons" style={{ fontSize: '22px' }}>add</span>
             </button>

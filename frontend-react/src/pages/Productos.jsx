@@ -23,6 +23,7 @@ export default function Productos() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
 
   const [productos, setProductos] = useState([])
   const [inventarios, setInventarios] = useState([])
@@ -370,7 +371,7 @@ export default function Productos() {
   }
 
   return (
-    <div style={s.container}>
+    <div style={{ ...s.container, overflowY: isMobile ? 'auto' : 'hidden', overflowX: 'hidden' }}>
       <header style={s.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Link to="/app/inicio" style={s.btn}><span className="material-icons">home</span></Link>
@@ -378,15 +379,15 @@ export default function Productos() {
           <span style={s.title}>Productos</span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <FullscreenButton />
+          {!isMobile && <FullscreenButton />}
           <button onClick={toggleDarkMode} style={s.btn}><span className="material-icons">{darkMode ? 'dark_mode' : 'light_mode'}</span></button>
         </div>
       </header>
 
-      <div style={s.body}>
+      <div style={{ ...s.body, height: isMobile ? undefined : 'calc(100vh - 64px)', minHeight: isMobile ? 'calc(100vh - 64px)' : undefined, paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/productos" />
 
-        <div style={s.main}>
+        <div style={{ ...s.main, overflow: isMobile ? 'visible' : 'auto' }}>
           <div style={{ padding: '8px 12px', background: darkMode ? '#222' : '#fff', borderBottom: `1px solid ${darkMode ? '#333' : '#ddd'}` }}>
             <input
               value={busqueda}
@@ -471,7 +472,7 @@ export default function Productos() {
         </div>
       </div>
 
-      <button style={s.fab} onClick={() => abrirModal(null)}>+</button>
+      <button style={{ ...s.fab, bottom: isMobile ? '70px' : '24px' }} onClick={() => abrirModal(null)}>+</button>
 
       {confirmDelete && (
         <div style={s.overlay}>

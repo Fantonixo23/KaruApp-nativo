@@ -12,6 +12,7 @@ export default function Inventario() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
 
   const [inventario, setInventario] = useState([])
   const [resumen, setResumen] = useState({})
@@ -264,12 +265,12 @@ export default function Inventario() {
             <option value="bajo">Stock Bajo</option>
             <option value="agotado">Agotado</option>
           </select>
-          <FullscreenButton />
+          {!isMobile && <FullscreenButton />}
           <button onClick={toggleDarkMode} style={s.btn}>{darkMode ? '🌙' : '☀️'}</button>
         </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/inventario" />
 
         <div style={{ padding: '20px', flex: 1, overflow: 'auto' }}>
@@ -440,7 +441,7 @@ export default function Inventario() {
       </div>
 
       {/* FAB - Nuevo Item */}
-      <button style={s.fab} onClick={() => setModalNuevo(true)}>+</button>
+      <button style={{ ...s.fab, bottom: isMobile ? '70px' : '24px' }} onClick={() => setModalNuevo(true)}>+</button>
 
       {/* MODAL MOVIMIENTO (entrada/salida) */}
       {modalMovimiento && (

@@ -25,6 +25,7 @@ export default function Cocina() {
   const toggleDarkMode = useStore((state) => state.toggleDarkMode)
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
+  const isMobile = useStore((state) => state.isMobile)
   const [panelAbierto, setPanelAbierto] = useState(false)
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null)
   const [modalConfirmar, setModalConfirmar] = useState(false)
@@ -211,17 +212,36 @@ export default function Cocina() {
 
   return (
     <div style={{ minHeight: '100vh', background: darkMode ? '#121212' : '#f0f2f5', color: darkMode ? '#fff' : '#1a1a1a', overflow: 'hidden' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', background: '#1a1a1a', color: 'white', borderBottom: '1px solid rgba(255,152,0,0.2)', boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Link to="/app/inicio" style={{ width: '36px', height: '36px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
-            <span className="material-icons">home</span>
-          </Link>
-          <img src="/logo.png" alt="karuAPP" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
-          <span style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '0.5px' }}>Cocina</span>
+      <header style={{
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row',
+        alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between',
+        padding: isMobile ? '8px 12px' : '10px 20px',
+        background: '#1a1a1a', color: 'white',
+        borderBottom: '1px solid rgba(255,152,0,0.2)', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+        gap: isMobile ? '8px' : '0',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link to="/app/inicio" style={{ width: '34px', height: '34px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+              <span className="material-icons">home</span>
+            </Link>
+            <img src="/logo.png" alt="karuAPP" style={{ width: '24px', height: '24px', borderRadius: '6px' }} />
+            <span style={{ fontSize: isMobile ? '18px' : '22px', fontWeight: '800', letterSpacing: '0.5px' }}>Cocina</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div style={{ textAlign: 'right', marginRight: '2px' }}>
+              <div style={{ fontSize: '13px', fontWeight: '600', color: '#FF9800', lineHeight: 1.2 }}>{horaStr}</div>
+              <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>{fechaStr}</div>
+            </div>
+            {!isMobile && <FullscreenButton />}
+            <button onClick={toggleDarkMode} style={{ width: '34px', height: '34px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className="material-icons" style={{ fontSize: '18px' }}>{darkMode ? 'dark_mode' : 'light_mode'}</span>
+            </button>
+          </div>
         </div>
         
-        {/* Buscador y filtros */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Buscador y filtros — segunda fila en mobile */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: '2px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           <input
             type="text"
             placeholder="Buscar #orden..."
@@ -229,30 +249,31 @@ export default function Cocina() {
             onChange={(e) => setBusqueda(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && loadPedidos()}
             style={{
-              padding: '8px 12px',
+              padding: '6px 10px',
               borderRadius: '8px',
               border: '1px solid rgba(255,255,255,0.15)',
               fontSize: '13px',
-              width: '120px',
+              width: isMobile ? '100px' : '120px',
+              minWidth: isMobile ? '80px' : '100px',
               background: 'rgba(255,255,255,0.08)',
               color: 'white',
-              outline: 'none',
+              outline: 'none', flexShrink: 0,
             }}
           />
-          <button onClick={loadPedidos} style={{ width: '36px', height: '36px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span className="material-icons" style={{ fontSize: '18px' }}>search</span>
+          <button onClick={loadPedidos} style={{ width: '32px', height: '32px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span className="material-icons" style={{ fontSize: '16px' }}>search</span>
           </button>
           {FILTROS.map(f => (
             <button
               key={f.key}
               onClick={() => setFiltro(f.key)}
               style={{
-                padding: '6px 14px',
+                padding: '5px 12px',
                 borderRadius: '8px',
                 border: 'none',
                 fontSize: '12px',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                 background: filtro === f.key ? f.color : 'rgba(255,255,255,0.08)',
                 color: filtro === f.key ? (f.key === 'cocinando' ? '#1a1a1a' : 'white') : 'rgba(255,255,255,0.7)',
                 transition: 'all 0.15s'
@@ -262,25 +283,14 @@ export default function Cocina() {
             </button>
           ))}
         </div>
-
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div style={{ textAlign: 'right', marginRight: '4px' }}>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#FF9800', lineHeight: 1.2 }}>{horaStr}</div>
-            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', textTransform: 'capitalize' }}>{fechaStr}</div>
-          </div>
-          <FullscreenButton />
-          <button onClick={toggleDarkMode} style={{ width: '36px', height: '36px', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span className="material-icons">{darkMode ? 'dark_mode' : 'light_mode'}</span>
-          </button>
-        </div>
       </header>
 
       {error && <div style={{ padding: '10px', background: '#E53935', color: 'white', textAlign: 'center' }}>⚠️ {error}</div>}
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
+      <div style={{ display: 'flex', height: 'calc(100vh - 64px)', paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/cocina" />
 
-        <div style={{ flex: 1, padding: '15px', overflowY: 'auto' }}>
+        <div style={{ flex: 1, padding: isMobile ? '10px' : '15px', overflowY: 'auto' }}>
           {pedidosMostrar.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px' }}>
               <p style={{ marginTop: '16px', fontSize: '24px', fontWeight: '600', color: darkMode ? '#aaa' : '#888' }}>
@@ -415,15 +425,18 @@ export default function Cocina() {
       {panelAbierto && pedidoSeleccionado && (
         <div style={{
           position: 'fixed',
-          top: '64px',
+          top: isMobile ? '0' : '64px',
+          left: isMobile ? '0' : 'auto',
           right: 0,
-          width: '320px',
-          height: 'calc(100vh - 64px)',
+          width: isMobile ? '100%' : '320px',
+          height: isMobile ? '100%' : 'calc(100vh - 64px)',
           background: darkMode ? '#1e1e1e' : 'white',
-          borderLeft: `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-          padding: '20px',
+          borderLeft: isMobile ? 'none' : `1px solid ${darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
+          padding: isMobile ? '16px' : '20px',
+          paddingBottom: isMobile ? '70px' : '20px',
           overflowY: 'auto',
-          boxShadow: '-4px 0 20px rgba(0,0,0,0.1)'
+          zIndex: isMobile ? 1200 : 'auto',
+          boxShadow: isMobile ? 'none' : '-4px 0 20px rgba(0,0,0,0.1)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
             <div>
