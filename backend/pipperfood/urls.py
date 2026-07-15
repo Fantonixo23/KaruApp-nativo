@@ -18,8 +18,7 @@ urlpatterns = [
     path('api/', include('pipperfood.api_urls')),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += [re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT})]
 
 frontend_dir = settings.BASE_DIR / 'frontend'
 urlpatterns += [
