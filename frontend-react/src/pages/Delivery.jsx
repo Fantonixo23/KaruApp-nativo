@@ -449,7 +449,7 @@ export default function Delivery() {
 <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <button 
                   onClick={() => setFiltroEstado('todos')}
-                  style={{ ...s.filtro(darkMode, filtroEstado === 'todos'), background: filtroEstado === 'todos' ? 'rgba(76, 175, 80, 0.4)' : undefined }}
+                  style={{ ...s.filtro(darkMode, filtroEstado === 'todos'), ...(filtroEstado === 'todos' ? { background: 'rgba(76, 175, 80, 0.4)' } : {}) }}
                 >
                   Activos ({pedidos.filter(p => !['entregado', 'pagado', 'cancelado'].includes(p.estado)).length})
                 </button>
@@ -463,7 +463,7 @@ export default function Delivery() {
                       onClick={() => setFiltroEstado(key)}
                       style={{ 
                         ...s.filtro(darkMode, filtroEstado === key), 
-                        background: filtroEstado === key ? `${value.color}40` : undefined,
+                        ...(filtroEstado === key ? { background: `${value.color}40` } : {}),
                         borderLeft: `3px solid ${value.color}`
                       }}
                     >
@@ -477,7 +477,7 @@ export default function Delivery() {
                     onClick={() => setFiltroEstado('entregado')}
                     style={{ 
                       ...s.filtro(darkMode, filtroEstado === 'entregado'), 
-                      background: filtroEstado === 'entregado' ? 'rgba(121, 31, 178, 0.4)' : undefined,
+                      ...(filtroEstado === 'entregado' ? { background: 'rgba(121, 31, 178, 0.4)' } : {}),
                       borderLeft: `3px solid #7B1FA2`,
                       marginLeft: '10px',
                       cursor: filtroEstado === 'entregado' ? 'not-allowed' : 'pointer',
