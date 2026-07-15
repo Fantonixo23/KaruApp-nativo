@@ -104,7 +104,7 @@ export default function Configuracion() {
   }
 
   const eliminarMetodo = async (id) => {
-    if (!confirm('¿Eliminar este método de pago?')) return
+    if (!confirm('Eliminar este metodo de pago?')) return
     try {
       const res = await fetch(`${API_URL}/facturacion/metodos-pago/${id}/eliminar`, { method: 'DELETE' })
       const data = await res.json()
@@ -157,7 +157,7 @@ export default function Configuracion() {
       const data = await res.json()
       
       if (data.success) {
-        setMensaje('✅ Datos guardados correctamente')
+        setMensaje('Datos guardados correctamente')
       } else {
         setMensaje(data.error || 'Error al guardar')
       }
@@ -187,7 +187,7 @@ export default function Configuracion() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Link to="/app/inicio" style={s.btnHeader}><span className="material-icons">home</span></Link>
           <img src="/logo.png" alt="karuAPP" style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
-          <span style={s.title}>Configuración</span>
+          <span style={s.title}>Configuracion</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button onClick={toggleDarkMode} style={s.btnHeader}><span className="material-icons">{darkMode ? 'dark_mode' : 'light_mode'}</span></button>
@@ -248,11 +248,11 @@ export default function Configuracion() {
         </div>
 
         <div style={s.card(darkMode)} className="animate">
-          <h2 style={s.cardTitle(darkMode)}>📋 Datos de Facturación</h2>
-          <p style={s.subtitle(darkMode)}>Configuración del timbrado SET</p>
+          <h2 style={s.cardTitle(darkMode)}>Datos de Facturacion</h2>
+          <p style={s.subtitle(darkMode)}>Configuracion del timbrado SET</p>
           
           <div style={s.field}>
-            <label style={s.label(darkMode)}>Número de Timbrado</label>
+            <label style={s.label(darkMode)}>Numero de Timbrado</label>
             <input 
               type="text"
               value={datos.timbrado_numero}
@@ -274,7 +274,7 @@ export default function Configuracion() {
               />
             </div>
             <div style={{...s.field, flex: 1}}>
-              <label style={s.label(darkMode)}>Punto Expedición</label>
+              <label style={s.label(darkMode)}>Punto Expedicion</label>
               <input 
                 type="text"
                 value={datos.punto_expedicion}
@@ -289,16 +289,16 @@ export default function Configuracion() {
         {/* MÉTODOS DE PAGO */}
         <div style={s.card(darkMode)} className="animate">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h2 style={s.cardTitle(darkMode)}>💳 Métodos de Pago</h2>
+            <h2 style={s.cardTitle(darkMode)}>Metodos de Pago</h2>
             <button onClick={() => abrirMetodoModal(null)} style={{
               padding: '8px 16px', border: 'none', borderRadius: '8px',
               background: '#4CAF50', color: 'white', fontWeight: '700', fontSize: '13px', cursor: 'pointer'
             }}>+ Agregar</button>
           </div>
-          <p style={s.subtitle(darkMode)}>Estos métodos aparecen al cobrar en Caja</p>
+          <p style={s.subtitle(darkMode)}>Estos metodos aparecen al cobrar en Caja</p>
 
           {metodos.length === 0 ? (
-            <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No hay métodos de pago configurados</p>
+            <p style={{ color: '#999', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No hay metodos de pago configurados</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {metodos.map((m) => (
@@ -311,26 +311,26 @@ export default function Configuracion() {
                   <span className="material-icons" style={{ color: m.color, fontSize: '24px' }}>{m.icono}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '700', fontSize: '14px', color: '#333' }}>{m.etiqueta}</div>
-                    <div style={{ fontSize: '11px', color: '#999' }}>/{m.nombre} · Orden {m.orden}</div>
+                    <div style={{ fontSize: '11px', color: '#999' }}>/{m.nombre} - Orden {m.orden}</div>
                   </div>
                   <button onClick={() => abrirMetodoModal(m)} style={{
                     padding: '6px 10px', border: '2px solid #ddd', borderRadius: '8px',
                     background: 'white', cursor: 'pointer', fontSize: '12px', color: '#666'
-                  }}>✏️</button>
+                  }}>Editar</button>
                   <button onClick={() => eliminarMetodo(m.id)} style={{
                     padding: '6px 10px', border: '2px solid #E53935', borderRadius: '8px',
                     background: 'white', cursor: 'pointer', fontSize: '12px', color: '#E53935'
-                  }}>🗑️</button>
+                  }}>Eliminar</button>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* CONFIGURACIÓN DE IMPRESIÓN TÉRMICA */}
+        {/* CONFIGURACION DE IMPRESION TERMICA */}
         <div style={s.card(darkMode)} className="animate">
-          <h2 style={s.cardTitle(darkMode)}>🖨️ Impresión Térmica</h2>
-          <p style={s.subtitle(darkMode)}>Configuración de la impresora térmica para tickets y comandas</p>
+          <h2 style={s.cardTitle(darkMode)}>Impresion Termica</h2>
+          <p style={s.subtitle(darkMode)}>Configuracion de la impresora termica para tickets y comandas</p>
 
           <div style={s.field}>
             <label style={s.label(darkMode)}>Impresora</label>
@@ -356,10 +356,10 @@ export default function Configuracion() {
                     if (data.success && data.impresoras.length > 0) {
                       alert('Impresoras disponibles:\n' + data.impresoras.join('\n'))
                     } else {
-                      alert('No se encontraron impresoras.\nAsegúrate de que el Servicio de Impresión esté iniciado (iniciar.bat)')
+                      alert('No se encontraron impresoras.\nAsegurate de que el Servicio de Impresion este iniciado (iniciar.bat)')
                     }
                   } catch (e) {
-                    alert('Error: ' + e.message + '\n\nAsegúrate de que el Servicio de Impresión esté iniciado (iniciar.bat)')
+                    alert('Error: ' + e.message + '\n\nAsegurate de que el Servicio de Impresion este iniciado (iniciar.bat)')
                   }
                 }}
                 style={{
@@ -367,13 +367,13 @@ export default function Configuracion() {
                   background: '#FF9800', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
                 }}
               >
-                🔍 Buscar
+                Buscar
               </button>
             </div>
           </div>
 
           <div style={s.field}>
-            <label style={s.label(darkMode)}>Tamaño del papel</label>
+            <label style={s.label(darkMode)}>Tamano del papel</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => {
@@ -388,7 +388,7 @@ export default function Configuracion() {
                   transition: 'all 0.15s'
                 }}
               >
-                📄 58mm (2″)
+                58mm (2")
               </button>
               <button
                 onClick={() => {
@@ -403,7 +403,7 @@ export default function Configuracion() {
                   transition: 'all 0.15s'
                 }}
               >
-                📄 80mm (3″)
+                80mm (3")
               </button>
             </div>
           </div>
@@ -437,7 +437,7 @@ export default function Configuracion() {
                 background: '#4CAF50', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer'
               }}
             >
-              🖨️ Probar Impresión
+              Probar Impresion
             </button>
           </div>
         </div>
@@ -457,7 +457,7 @@ export default function Configuracion() {
               maxHeight: '85vh', overflow: 'auto', padding: '24px'
             }}>
               <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: '700', color: '#333' }}>
-                {editMetodoId ? '✏️ Editar Método' : '➕ Nuevo Método de Pago'}
+                {editMetodoId ? 'Editar Metodo' : 'Nuevo Metodo de Pago'}
               </h3>
 
               {metodoMsg && (
@@ -532,7 +532,7 @@ export default function Configuracion() {
                   flex: 1, padding: '12px', border: 'none', borderRadius: '10px',
                   background: 'linear-gradient(135deg, #FF9800, #F57C00)', color: 'white',
                   fontWeight: '700', cursor: 'pointer'
-                }}>{editMetodoId ? '💾 Guardar' : '➕ Crear'}</button>
+                }}>{editMetodoId ? 'Guardar' : 'Crear'}</button>
               </div>
             </div>
           </div>
@@ -541,8 +541,8 @@ export default function Configuracion() {
         {mensaje && (
           <div style={{
             ...s.mensaje,
-            background: mensaje.includes('✅') ? '#d4edda' : '#f8d7da',
-            color: mensaje.includes('✅') ? '#155724' : '#721c24'
+            background: '#d4edda',
+            color: '#155724'
           }}>
             {mensaje}
           </div>
@@ -556,11 +556,11 @@ export default function Configuracion() {
             opacity: guardando ? 0.7 : 1
           }}
         >
-          {guardando ? 'Guardando...' : '💾 Guardar Cambios'}
+          {guardando ? 'Guardando...' : 'Guardar Cambios'}
         </button>
 
         <div style={s.info}>
-          <p>📌 Los cambios se aplican inmediatamente a los tickets.</p>
+          <p>Los cambios se aplican inmediatamente a los tickets.</p>
         </div>
         </div>
       </div>
