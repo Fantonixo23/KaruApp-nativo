@@ -794,7 +794,7 @@ def pagar_pedido(request, pk):
         metodo_pago = data.get('metodo_pago', 'efectivo')
         propinas = data.get('propina', 0)
         dividir_pago = data.get('dividir_pago', None)
-        usuario_id = data.get('usuario_id', request.user.id if request.user.is_authenticated else None)
+        usuario_id = data.get('usuario_id')
         marca_tarjeta = data.get('marca_tarjeta', '')
         ultimos_4 = data.get('ultimos_4', '')
         comprobante_nro = data.get('comprobante_nro', '')

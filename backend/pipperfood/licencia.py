@@ -259,11 +259,7 @@ class LicenseManager:
                         ult = datetime.fromisoformat(ultima_verif)
                         segundos_diff = (datetime.now() - ult).total_seconds()
                         if segundos_diff < self.cache_ttl_segundos and not cache.get('bloqueado'):
-                            if not cache.get('online'):
-                                if segundos_diff < 300:
-                                    return self._check_offline_grace(cache)
-                            else:
-                                return cache
+                            return self._check_offline_grace(cache)
                     except Exception:
                         pass
 
@@ -326,12 +322,12 @@ class VerificarLicenciaMiddleware:
             '/admin/',
             '/static/',
             '/media/',
-            '/',
             '/login',
         ]
 
-        for path in excluded_paths:
-            if request.path.startswith(path):
+        path = request.path.rstrip('/') or '/'
+        for prefix in excluded_paths:
+            if path.startswith(prefix.rstrip('/')):
                 return self.get_response(request)
 
         licencia = license_manager.verificar(force_refresh=True)
