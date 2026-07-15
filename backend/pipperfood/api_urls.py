@@ -6,6 +6,7 @@ from .views import (
     verificar_licencia as verificar_licencia_viejo,
     activar_licencia,
     print_token,
+    qr_conexion,
 )
 from .licencia import verificar_licencia_api
 from apps.facturacion.signing import qz_sign, qz_cert
@@ -19,4 +20,5 @@ urlpatterns = [
     path('print-token', print_token, name='print_token'),
     path('print-cert', qz_cert, name='qz_cert'),
     path('print-sign', qz_sign, name='qz_sign'),
+    path('qr-conexion', qr_conexion, name='qr_conexion'),
 ]

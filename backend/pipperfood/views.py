@@ -43,12 +43,33 @@ def verificar_suscripcion(request):
 
 
 def obtener_ip_local(request):
-    """Obtiene la IP local del servidor"""
+    """Obtiene las IPs locales del servidor"""
     hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
+    ips = []
+    try:
+        import subprocess
+        result = subprocess.run(['ipconfig'], capture_output=True, text=True, timeout=5)
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if 'IPv4' in line and ':' in line:
+                ip = line.split(':')[1].strip()
+                if ip:
+                    ips.append(ip)
+    except Exception:
+        pass
+    if not ips:
+        try:
+            ips = [socket.gethostbyname(hostname)]
+        except Exception:
+            ips = ['127.0.0.1']
+    urls = [f'http://{ip}:8000' for ip in ips]
     return JsonResponse({
-        'ip': ip_address,
-        'hostname': hostname
+        'ip': ips[0] if ips else '127.0.0.1',
+        'ips': ips,
+        'hostname': hostname,
+        'urls': urls,
+        'url_principal': urls[0] if urls else f'http://{hostname}:8000',
+        'url_hostname': f'http://{hostname}:8000',
     })
 
 
@@ -72,6 +93,46 @@ def verificar_licencia(request):
 @require_http_methods(["GET"])
 def print_token(request):
     return JsonResponse({'success': True, 'token': settings.PRINT_API_TOKEN})
+
+@require_http_methods(["GET"])
+def qr_conexion(request):
+    hostname = socket.gethostname()
+    ips = []
+    try:
+        import subprocess
+        result = subprocess.run(['ipconfig'], capture_output=True, text=True, timeout=5)
+        for line in result.stdout.split('\n'):
+            line = line.strip()
+            if 'IPv4' in line and ':' in line:
+                ip = line.split(':')[1].strip()
+                if ip:
+                    ips.append(ip)
+    except Exception:
+        pass
+    if not ips:
+        try:
+            ips = [socket.gethostbyname(hostname)]
+        except Exception:
+            ips = ['127.0.0.1']
+    urls = [f'http://{ip}:8000' for ip in ips]
+    url_principal = urls[0] if urls else f'http://{hostname}:8000'
+    try:
+        import qrcode
+        from io import BytesIO
+        import base64
+        img = qrcode.make(url_principal)
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        qr_b64 = None
+    return JsonResponse({
+        'hostname': hostname,
+        'ips': ips,
+        'urls': urls,
+        'url_principal': url_principal,
+        'qr_base64': qr_b64,
+    })
 
 @csrf_exempt
 @require_http_methods(["POST"])
