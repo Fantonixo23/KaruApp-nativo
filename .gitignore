@@ -11,3 +11,5 @@ backend/licencia_config.json
 *.db
 .DS_Store
 Thumbs.db
+node_modules/
+frontend-react/dist/
