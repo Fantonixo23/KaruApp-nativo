@@ -283,8 +283,7 @@ export default function Cocina() {
         <div style={{ flex: 1, padding: '15px', overflowY: 'auto' }}>
           {pedidosMostrar.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px' }}>
-              <span style={{ fontSize: '60px', color: '#4CAF50' }}>🍳</span>
-              <p style={{ marginTop: '16px', fontSize: '18px' }}>
+              <p style={{ marginTop: '16px', fontSize: '24px', fontWeight: '600', color: darkMode ? '#aaa' : '#888' }}>
                 {pedidos.length === 0 ? 'No hay pedidos en cocina' : 'No hay pedidos con ese filtro'}
               </p>
             </div>
