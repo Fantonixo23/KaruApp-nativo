@@ -1,6 +1,8 @@
 import json
 import os
 import time
+import logging
+from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from printer_utils import listar_impresoras, detectar_impresora_termica, imprimir_texto
 from escpos_builder import build_comanda, build_cuenta, build_factura, build_test_page
@@ -10,10 +12,25 @@ PORT = 5123
 MAX_RETRIES = 3
 RETRY_DELAY = 1
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(str(LOG_DIR / 'print.log'), encoding='utf-8'),
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger('karuprint')
+
 TOKEN = os.environ.get('PRINT_API_TOKEN')
 if not TOKEN:
-    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.env')
-    if os.path.exists(env_path):
+    env_path = BASE_DIR / 'config.env'
+    if env_path.exists():
         with open(env_path) as f:
             for line in f:
                 line = line.strip()
@@ -97,8 +114,7 @@ class PrintHandler(BaseHTTPRequestHandler):
                 self._json({'error': 'not found'}, 404)
         except Exception as e:
             import traceback
-            print(f'[PrintServer ERROR] {e}')
-            traceback.print_exc()
+            logger.error(f'{e}', exc_info=True)
             self._json({'success': False, 'error': str(e)}, 500)
 
     def _get_printer(self, body):
@@ -194,22 +210,14 @@ class PrintHandler(BaseHTTPRequestHandler):
         self._json({'success': True, 'impresora': printer})
 
     def log_message(self, format, *args):
-        print(f'[PrintServer] {args[0]} {args[1]} {args[2]}')
+        logger.info(f'{args[0]} {args[1]} {args[2]}')
 
 
 if __name__ == '__main__':
-    print(f' karuAPP Print Service iniciado en http://{HOST}:{PORT}')
-    print(f' Endpoints:')
-    print(f'   GET  /health    - Estado del servicio')
-    print(f'   GET  /printers  - Listar impresoras')
-    print(f'   POST /print/comanda - Imprimir comanda')
-    print(f'   POST /print/cuenta  - Imprimir cuenta mesa')
-    print(f'   POST /print/factura - Imprimir factura')
-    print(f'   POST /print/test    - Pagina de prueba')
-    print(f'   POST /print/raw     - ESC/POS crudo (base64)')
+    logger.info('Servicio de impresion iniciado en puerto 5123')
     server = HTTPServer((HOST, PORT), PrintHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print('\n Servicio detenido')
+        logger.info('Servicio de impresion detenido')
         server.server_close()

@@ -11,7 +11,7 @@ echo Instalador sin Docker. Requiere Python 3.12+.
 echo.
 
 :: --- 1. Verificar Python ---
-echo [1/6] Verificando Python 3.12+...
+echo [1/7] Verificando Python 3.12+...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo [INFO] Python no encontrado. Descargando Python 3.12...
@@ -48,7 +48,7 @@ if %errorlevel% neq 0 (
 
 :: --- 2. Crear virtualenv ---
 echo.
-echo [2/6] Creando entorno virtual...
+echo [2/7] Creando entorno virtual...
 if exist "backend\venv" (
     echo [INFO] Entorno virtual ya existe.
 ) else (
@@ -63,7 +63,7 @@ if exist "backend\venv" (
 
 :: --- 3. Instalar dependencias ---
 echo.
-echo [3/6] Instalando dependencias...
+echo [3/7] Instalando dependencias...
 call backend\venv\Scripts\activate.bat
 pip install -r backend\requirements.txt
 if %errorlevel% neq 0 (
@@ -75,7 +75,7 @@ echo [OK] Dependencias instaladas.
 
 :: --- 4. Configurar cliente ---
 echo.
-echo [4/6] Configuracion del cliente
+echo [4/7] Configuracion del cliente
 echo.
 set /p NOMBRE="Nombre del restaurante: "
 if "%NOMBRE%"=="" set NOMBRE=Mi Restaurante
@@ -96,7 +96,7 @@ echo [OK] Configuracion guardada.
 
 :: --- 5. Migrar y crear usuarios ---
 echo.
-echo [5/6] Ejecutando migraciones...
+echo [5/7] Ejecutando migraciones...
 cd backend
 python manage.py migrate --noinput
 if %errorlevel% neq 0 (
@@ -113,14 +113,35 @@ python manage.py crear_usuarios
 echo [OK] Usuarios creados.
 cd ..
 
-:: --- 6. Generar certificados QZ Tray ---
+:: --- 6. Verificar frontend ---
 echo.
-echo [6/6] Generando certificados para impresion termica (QZ Tray)...
-python generar_certificados_qz.py
-if %errorlevel% neq 0 (
-    echo [WARN] No se pudieron generar los certificados.
+echo [6/7] Verificando frontend...
+if not exist "backend\frontend\index.html" (
+    echo [WARN] No se encontro el frontend compilado.
+    echo.
+    where node >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [INFO] Node.js detectado. Reconstruyendo frontend...
+        cd frontend-react
+        call npm install
+        if !errorlevel! equ 0 (
+            call npm run build
+        )
+        cd ..
+        if exist "backend\frontend\index.html" (
+            echo [OK] Frontend reconstruido.
+        ) else (
+            echo [WARN] No se pudo reconstruir el frontend.
+        )
+    ) else (
+        echo [INFO] Node.js no detectado. Para reconstruir el frontend:
+        echo         Instala Node.js desde https://nodejs.org/
+        echo         Luego ejecuta en frontend-react:
+        echo           npm install ^&^& npm run build
+        echo.
+    )
 ) else (
-    echo [OK] Certificados generados.
+    echo [OK] Frontend encontrado.
 )
 
 :: --- 7. Iniciar servidor ---
@@ -131,8 +152,12 @@ echo ============================================
 echo    Instalacion completada con exito
 echo ============================================
 echo.
-echo  Sistema:  Pipperfood POS
+echo  Sistema:  karuAPP POS
 echo  Cliente:  %NOMBRE%
+echo.
+echo  Para iniciar los servidores:
+echo    - Con ventanas:   iniciar.bat
+echo    - Sin ventanas:   iniciar-silencioso.vbs
 echo.
 echo  Abriendo http://localhost:8000 ...
 echo.

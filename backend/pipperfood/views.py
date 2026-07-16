@@ -1,3 +1,5 @@
+import os
+import sys
 import socket
 import json
 import subprocess
@@ -153,6 +155,59 @@ def qr_conexion(request):
         'url_principal': url_principal,
         'qr_base64': qr_b64,
     })
+
+from pathlib import Path
+import datetime
+
+@require_http_methods(["GET"])
+def backup_status(request):
+    backup_dir = Path(__file__).parent.parent / 'backups'
+    info = []
+    if backup_dir.exists():
+        backups = sorted(backup_dir.glob('karuapp_backup_*.db'), key=os.path.getmtime, reverse=True)
+        for b in backups:
+            info.append({
+                'nombre': b.name,
+                'tamano': b.stat().st_size,
+                'fecha': datetime.datetime.fromtimestamp(b.stat().st_mtime).isoformat()
+            })
+    return JsonResponse({'ok': True, 'backups': info, 'total': len(info)})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def backup_run(request):
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+    mode = body.get('mode', 'local')
+    tag = body.get('tag', '')
+
+    script = Path(__file__).parent.parent / 'backup_db.py'
+    cmd = [sys.executable, str(script)]
+    if mode == 'rclone':
+        cmd.append('--rclone')
+    elif mode == 'upload':
+        cmd.append('--upload')
+    if tag:
+        cmd.extend(['--tag', tag])
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        output = result.stdout.strip()
+        if result.returncode != 0:
+            return JsonResponse({'ok': False, 'error': result.stderr[:500]}, status=500)
+        try:
+            data = json.loads(output)
+            return JsonResponse(data)
+        except json.JSONDecodeError:
+            return JsonResponse({'ok': True, 'raw': output})
+    except subprocess.TimeoutExpired:
+        return JsonResponse({'ok': False, 'error': 'Backup timeout (2 min)'}, status=500)
+    except Exception as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=500)
+
 
 @csrf_exempt
 @require_http_methods(["POST"])

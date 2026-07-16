@@ -45,10 +45,19 @@ export default function Configuracion() {
   const logoInputRef = useRef(null)
   const [printerName, setPrinterName] = useState(() => localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || '')
   const [paperSize, setPaperSize] = useState(() => localStorage.getItem('pipper_paper_size') || '58mm')
+  const [printServerCaja, setPrintServerCaja] = useState(() => localStorage.getItem('pipper_print_server_caja') || 'http://localhost:5123')
+  const [printerCaja, setPrinterCaja] = useState(() => localStorage.getItem('pipper_printer_caja') || '')
+  const [printServerCocina, setPrintServerCocina] = useState(() => localStorage.getItem('pipper_print_server_cocina') || 'http://localhost:5123')
+  const [printerCocina, setPrinterCocina] = useState(() => localStorage.getItem('pipper_printer_cocina') || '')
+
+  const [backupInfo, setBackupInfo] = useState(null)
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [backupMsg, setBackupMsg] = useState('')
 
   useEffect(() => {
     cargarDatos()
     cargarMetodos()
+    cargarBackupStatus()
   }, [])
 
   const cargarMetodos = async () => {
@@ -57,6 +66,36 @@ export default function Configuracion() {
       const data = await res.json()
       if (data.success) setMetodos(data.metodos || [])
     } catch {}
+  }
+
+  const cargarBackupStatus = async () => {
+    try {
+      const res = await fetch(`${API_URL}/backup`)
+      const data = await res.json()
+      if (data.ok) setBackupInfo(data)
+    } catch {}
+  }
+
+  const realizarBackup = async (mode = 'local') => {
+    setBackupLoading(true)
+    setBackupMsg('')
+    try {
+      const res = await fetch(`${API_URL}/backup/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode })
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setBackupMsg('Backup creado: ' + (data.nombre || data.archivo || 'OK'))
+        cargarBackupStatus()
+      } else {
+        setBackupMsg('Error: ' + (data.error || 'desconocido'))
+      }
+    } catch (e) {
+      setBackupMsg('Error de conexion: ' + e.message)
+    }
+    setBackupLoading(false)
   }
 
   const abrirMetodoModal = (metodo = null) => {
@@ -331,48 +370,129 @@ export default function Configuracion() {
         {/* CONFIGURACION DE IMPRESION TERMICA */}
         <div style={s.card(darkMode)} className="animate">
           <h2 style={s.cardTitle(darkMode)}>Impresion Termica</h2>
-          <p style={s.subtitle(darkMode)}>Configuracion de la impresora termica para tickets y comandas</p>
+          <p style={s.subtitle(darkMode)}>Configura las impresoras de Caja (tickets/facturas) y Cocina (comandas)</p>
 
-          <div style={s.field}>
-            <label style={s.label(darkMode)}>Impresora</label>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* --- IMPRESORA DE CAJA --- */}
+          <div style={{ ...s.field, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : '#e0e0e0'}`, marginBottom: '16px' }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '700', color: darkMode ? '#FFB74D' : '#E65100', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="material-icons" style={{ fontSize: '18px' }}>point_of_sale</span> Impresora de Caja
+            </h3>
+            <p style={{ fontSize: '12px', color: '#999', margin: '0 0 12px 0' }}>Para tickets de factura, cuenta y delivery</p>
+
+            <div style={s.field}>
+              <label style={s.label(darkMode)}>Servidor de impresion (IP:Puerto)</label>
               <input
                 type="text"
-                value={printerName}
+                value={printServerCaja}
                 onChange={(e) => {
-                  setPrinterName(e.target.value)
-                  localStorage.setItem('pipper_printer_name', e.target.value)
+                  setPrintServerCaja(e.target.value)
+                  localStorage.setItem('pipper_print_server_caja', e.target.value)
                 }}
-                placeholder="Nombre exacto (dejar vacío = predeterminada)"
-                style={{ ...s.input(darkMode), flex: 1 }}
+                placeholder="http://192.168.100.10:5123"
+                style={s.input(darkMode)}
               />
-              <button
-                onClick={async () => {
-                  try {
-                    const token = await (await fetch(`${API_URL}/print-token`)).json()
-                    const res = await fetch('http://localhost:5123/printers', {
-                      headers: { 'Authorization': 'Bearer ' + (token.token || 'pipper-print-token-default') }
-                    })
-                    const data = await res.json()
-                    if (data.success && data.impresoras.length > 0) {
-                      alert('Impresoras disponibles:\n' + data.impresoras.join('\n'))
-                    } else {
-                      alert('No se encontraron impresoras.\nAsegurate de que el Servicio de Impresion este iniciado (iniciar.bat)')
+            </div>
+
+            <div style={s.field}>
+              <label style={s.label(darkMode)}>Nombre de la impresora</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={printerCaja}
+                  onChange={(e) => {
+                    setPrinterCaja(e.target.value)
+                    localStorage.setItem('pipper_printer_caja', e.target.value)
+                  }}
+                  placeholder="Dejar vacío = predeterminada"
+                  style={{ ...s.input(darkMode), flex: 1 }}
+                />
+                <button
+                  onClick={async () => {
+                    try {
+                      const { listPrinters } = await import('../utils/qzPrint')
+                      const data = await listPrinters(printServerCaja)
+                      if (data.success && data.impresoras && data.impresoras.length > 0) {
+                        const nombres = data.impresoras.map(i => i.nombre || i)
+                        alert('Impresoras en ' + printServerCaja + ':\n\n' + nombres.join('\n'))
+                      } else {
+                        alert('No se encontraron impresoras en ' + printServerCaja + '\nVerifica que el Servicio de Impresion este iniciado.')
+                      }
+                    } catch (e) {
+                      alert('Error al conectar con ' + printServerCaja + ':\n' + e.message)
                     }
-                  } catch (e) {
-                    alert('Error: ' + e.message + '\n\nAsegurate de que el Servicio de Impresion este iniciado (iniciar.bat)')
-                  }
-                }}
-                style={{
-                  padding: '10px 14px', border: 'none', borderRadius: '10px',
-                  background: '#FF9800', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
-                }}
-              >
-                Buscar
-              </button>
+                  }}
+                  style={{
+                    padding: '10px 14px', border: 'none', borderRadius: '10px',
+                    background: '#FF9800', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
+                  }}
+                >
+                  Buscar
+                </button>
+              </div>
             </div>
           </div>
 
+          {/* --- IMPRESORA DE COCINA --- */}
+          <div style={{ ...s.field, padding: '12px', borderRadius: '10px', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.1)' : '#e0e0e0'}`, marginBottom: '16px' }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: '700', color: darkMode ? '#81C784' : '#2E7D32', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="material-icons" style={{ fontSize: '18px' }}>restaurant</span> Impresora de Cocina
+            </h3>
+            <p style={{ fontSize: '12px', color: '#999', margin: '0 0 12px 0' }}>Para comandas de cocina</p>
+
+            <div style={s.field}>
+              <label style={s.label(darkMode)}>Servidor de impresion (IP:Puerto)</label>
+              <input
+                type="text"
+                value={printServerCocina}
+                onChange={(e) => {
+                  setPrintServerCocina(e.target.value)
+                  localStorage.setItem('pipper_print_server_cocina', e.target.value)
+                }}
+                placeholder="http://192.168.100.5:5123"
+                style={s.input(darkMode)}
+              />
+            </div>
+
+            <div style={s.field}>
+              <label style={s.label(darkMode)}>Nombre de la impresora</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={printerCocina}
+                  onChange={(e) => {
+                    setPrinterCocina(e.target.value)
+                    localStorage.setItem('pipper_printer_cocina', e.target.value)
+                  }}
+                  placeholder="Dejar vacío = predeterminada"
+                  style={{ ...s.input(darkMode), flex: 1 }}
+                />
+                <button
+                  onClick={async () => {
+                    try {
+                      const { listPrinters } = await import('../utils/qzPrint')
+                      const data = await listPrinters(printServerCocina)
+                      if (data.success && data.impresoras && data.impresoras.length > 0) {
+                        const nombres = data.impresoras.map(i => i.nombre || i)
+                        alert('Impresoras en ' + printServerCocina + ':\n\n' + nombres.join('\n'))
+                      } else {
+                        alert('No se encontraron impresoras en ' + printServerCocina + '\nVerifica que el Servicio de Impresion este iniciado.')
+                      }
+                    } catch (e) {
+                      alert('Error al conectar con ' + printServerCocina + ':\n' + e.message)
+                    }
+                  }}
+                  style={{
+                    padding: '10px 14px', border: 'none', borderRadius: '10px',
+                    background: '#FF9800', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer', whiteSpace: 'nowrap'
+                  }}
+                >
+                  Buscar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* --- CONFIGURACION COMPARTIDA --- */}
           <div style={s.field}>
             <label style={s.label(darkMode)}>Tamano del papel</label>
             <div style={{ display: 'flex', gap: '8px' }}>
@@ -409,6 +529,7 @@ export default function Configuracion() {
             </div>
           </div>
 
+          {/* --- BOTONES DE PRUEBA --- */}
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
             <button
               onClick={async () => {
@@ -428,21 +549,118 @@ export default function Configuracion() {
                   }
                   const empresaPrueba = { nombre: datos.nombre_empresa || 'Mi Restaurante' }
                   await printDeliveryTicket(pedidoPrueba, empresaPrueba)
-                  alert('✅ Impresión de prueba enviada correctamente')
+                  alert('Impresion de Caja enviada correctamente')
                 } catch (e) {
-                  alert('Error: ' + e.message)
+                  alert('Error (Caja): ' + e.message)
                 }
               }}
               style={{
                 flex: 1, padding: '10px', border: 'none', borderRadius: '10px',
-                background: '#4CAF50', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer'
+                background: '#E65100', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer'
               }}
             >
-              Probar Impresion
+              Probar Caja
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const { printComanda } = await import('../utils/qzPrint')
+                  const pedidoPrueba = {
+                    numero_orden: 'TEST',
+                    mesa: 99,
+                    mesero_nombre: 'Prueba',
+                    tipo_pedido: 'local',
+                    created_at: new Date().toISOString(),
+                    items: [
+                      { producto_nombre: 'Milanesa con papas', categoria_nombre: 'PLATO PRINCIPAL', cantidad: 2, precio: 35000 },
+                      { producto_nombre: 'Ensalada', categoria_nombre: 'ENTRADA', cantidad: 1, precio: 15000 },
+                    ],
+                  }
+                  await printComanda(pedidoPrueba)
+                  alert('Impresion de Cocina enviada correctamente')
+                } catch (e) {
+                  alert('Error (Cocina): ' + e.message)
+                }
+              }}
+              style={{
+                flex: 1, padding: '10px', border: 'none', borderRadius: '10px',
+                background: '#2E7D32', color: 'white', fontWeight: '700', fontSize: '12px', cursor: 'pointer'
+              }}
+            >
+              Probar Cocina
             </button>
           </div>
         </div>
 
+        {/* RESPALDO DE BASE DE DATOS */}
+        <div style={s.card(darkMode)} className="animate">
+          <h2 style={s.cardTitle(darkMode)}>Respaldo de Base de Datos</h2>
+          <p style={s.subtitle(darkMode)}>Crea copias de seguridad de la base de datos y subelas a Google Drive</p>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+            <button
+              onClick={() => realizarBackup('local')}
+              disabled={backupLoading}
+              style={{
+                flex: 1, padding: '10px', border: 'none', borderRadius: '10px',
+                background: backupLoading ? '#999' : '#FF9800',
+                color: 'white', fontWeight: '700', fontSize: '12px', cursor: backupLoading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {backupLoading ? 'Respaldando...' : 'Respaldar Ahora'}
+            </button>
+            <button
+              onClick={() => realizarBackup('rclone')}
+              disabled={backupLoading}
+              style={{
+                flex: 1, padding: '10px', border: 'none', borderRadius: '10px',
+                background: backupLoading ? '#999' : '#2196F3',
+                color: 'white', fontWeight: '700', fontSize: '12px', cursor: backupLoading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Backup + Google Drive
+            </button>
+          </div>
+
+          {backupMsg && (
+            <div style={{
+              padding: '10px', borderRadius: '8px', marginBottom: '12px',
+              background: backupMsg.startsWith('Error') ? 'rgba(229,57,53,0.1)' : 'rgba(76,175,80,0.1)',
+              color: backupMsg.startsWith('Error') ? '#E53935' : '#2E7D32',
+              fontSize: '12px', fontWeight: '600', textAlign: 'center'
+            }}>
+              {backupMsg}
+            </div>
+          )}
+
+          {backupInfo && backupInfo.backups && backupInfo.backups.length > 0 && (
+            <div>
+              <label style={s.label(darkMode)}>Ultimos respaldos</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {backupInfo.backups.slice(0, 5).map((b, i) => (
+                  <div key={i} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 12px', borderRadius: '8px',
+                    background: darkMode ? '#2a2a2a' : '#f5f5f5',
+                    fontSize: '12px'
+                  }}>
+                    <span style={{ color: darkMode ? '#ccc' : '#555' }}>
+                      {new Date(b.fecha).toLocaleString('es-PY', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span style={{ color: darkMode ? '#aaa' : '#777' }}>
+                      {(b.tamano / 1024).toFixed(0)} KB
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ marginTop: '12px', fontSize: '11px', color: '#999', lineHeight: '1.5' }}>
+            Los backups se guardan en <code>backend/backups/</code>.<br />
+            Para Google Drive via rclone: instala <a href="https://rclone.org/downloads/" target="_blank" rel="noopener" style={{ color: '#FF9800' }}>rclone</a>, configuralo y ejecuta "Backup + Google Drive".
+          </div>
+        </div>
 
 
         {/* MODAL MÉTODO DE PAGO */}

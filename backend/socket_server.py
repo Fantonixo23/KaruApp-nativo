@@ -1,49 +1,84 @@
 #!/usr/bin/env python
 import os
 import sys
-import django
+import logging
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent.resolve()
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[
+        logging.FileHandler(str(LOG_DIR / 'django.log'), encoding='utf-8'),
+        logging.StreamHandler(),
+    ]
+)
+logger = logging.getLogger('karuapp')
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pipperfood.settings')
 
-# Agregar el directorio actual al path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(BASE_DIR))
 
-# Inicializar Django
+import django
 django.setup()
 
 from django.core.asgi import get_asgi_application
 from socketio import ASGIApp, AsyncServer
 import uvicorn
 
-# Importar las rutas de Django
 django_app = get_asgi_application()
 
-# Crear servidor Socket.IO
 sio = AsyncServer(
     async_mode='asgi',
     cors_allowed_origins='*',
 )
 
-# App ASGI que combina Django + Socket.IO
 app = ASGIApp(sio, django_app)
 
 @sio.event
 async def connect(sid, environ):
-    print(f'Cliente conectado: {sid}')
-    await sio.emit('connected', {'message': 'Conectado al servidor', 'sid': sid})
+    logger.info(f'Cliente conectado: {sid}')
 
 @sio.event
 async def disconnect(sid):
-    print(f'Cliente desconectado: {sid}')
+    logger.info(f'Cliente desconectado: {sid}')
 
 @sio.event
 async def message(sid, data):
-    print(f'Mensaje de {sid}: {data}')
-    await sio.emit('message', data)
+    logger.info(f'Mensaje de {sid}: {data}')
 
-# Importar y configurar el módulo de eventos
 import pipperfood.socket_events as socket_events
 socket_events.sio = sio
 
 if __name__ == '__main__':
-    uvicorn.run(app, host='0.0.0.0', port=8000)
+    logger.info('Iniciando servidor Django + Socket.IO en puerto 8000')
+    uvicorn.run(app, host='0.0.0.0', port=8000, log_config={
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'default': {
+                'format': '%(asctime)s [%(levelname)s] %(message)s',
+                'datefmt': '%Y-%m-%d %H:%M:%S',
+            },
+        },
+        'handlers': {
+            'file': {
+                'class': 'logging.FileHandler',
+                'filename': str(LOG_DIR / 'uvicorn.log'),
+                'formatter': 'default',
+                'encoding': 'utf-8',
+            },
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'default',
+            },
+        },
+        'root': {
+            'level': 'INFO',
+            'handlers': ['file', 'console'],
+        },
+    })

@@ -1,7 +1,20 @@
-const PRINT_SERVICE_URL = 'http://localhost:5123'
 const API_URL = window.location.origin + '/api'
 
 let _tokenCache = null
+
+function _getPrintServer(tipo) {
+  if (tipo === 'cocina') {
+    return localStorage.getItem('pipper_print_server_cocina') || 'http://localhost:5123'
+  }
+  return localStorage.getItem('pipper_print_server_caja') || 'http://localhost:5123'
+}
+
+function _getPrinterName(tipo) {
+  if (tipo === 'cocina') {
+    return localStorage.getItem('pipper_printer_cocina') || localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || ''
+  }
+  return localStorage.getItem('pipper_printer_caja') || localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || ''
+}
 
 async function _getToken() {
   if (_tokenCache) return _tokenCache
@@ -25,13 +38,13 @@ function _stringToBase64(str) {
   return btoa(binary)
 }
 
-async function _sendRaw(data, printerName) {
+async function _sendRaw(data, printerName, serverUrl) {
   const token = await _getToken()
   const body = { data: _stringToBase64(data) }
   if (printerName) {
     body.impresora = printerName
   }
-  const res = await fetch(PRINT_SERVICE_URL + '/print/raw', {
+  const res = await fetch(serverUrl + '/print/raw', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -315,20 +328,35 @@ function buildDeliveryTicket(pedido, empresa) {
   return data
 }
 
+export async function listPrinters(serverUrl) {
+  try {
+    const token = await _getToken()
+    const res = await fetch(serverUrl + '/printers', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    return await res.json()
+  } catch (e) {
+    return { success: false, error: e.message }
+  }
+}
+
 export async function printTicketFactura(pedido, negocio, cliente, numero) {
   const data = buildTicketFactura(pedido, negocio, cliente, numero)
-  const printerName = localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || ''
-  await _sendRaw(data, printerName)
+  const printerName = _getPrinterName('caja')
+  const serverUrl = _getPrintServer('caja')
+  await _sendRaw(data, printerName, serverUrl)
 }
 
 export async function printComanda(pedido) {
   const data = buildComanda(pedido)
-  const printerName = localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || ''
-  await _sendRaw(data, printerName)
+  const printerName = _getPrinterName('cocina')
+  const serverUrl = _getPrintServer('cocina')
+  await _sendRaw(data, printerName, serverUrl)
 }
 
 export async function printDeliveryTicket(pedido, empresa) {
   const data = buildDeliveryTicket(pedido, empresa)
-  const printerName = localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || ''
-  await _sendRaw(data, printerName)
+  const printerName = _getPrinterName('caja')
+  const serverUrl = _getPrintServer('caja')
+  await _sendRaw(data, printerName, serverUrl)
 }

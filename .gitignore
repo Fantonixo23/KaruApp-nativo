@@ -13,3 +13,4 @@ backend/licencia_config.json
 Thumbs.db
 node_modules/
 frontend-react/dist/
+backend/logs/
