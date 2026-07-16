@@ -26,6 +26,7 @@ def get_sifen_status(request):
         'success': True,
         'sifen_disponible': SIFEN_AVAILABLE,
         'kude_disponible': KUDE_AVAILABLE,
+        'sifen_habilitado': bool(config and config.sifen_habilitado),
         'certificado_configurado': bool(config and config.certificado_pkcs12),
         'csc_configurado': bool(config and config.csc),
         'ambiente': config.ambiente_sifen if config else 'test',

@@ -7,13 +7,13 @@ from lxml import etree
 import requests
 
 # URLs oficiales SIFEN/SET Paraguay
-SIFEN_SANDBOX_URL = "https://sifen.sandbox.set.gov.py/"
+# Producción: https://sifen.set.gov.py/
+# Test (homologación): https://sifen-test.set.gov.py/
+SIFEN_SANDBOX_URL = "https://sifen-test.set.gov.py/"
 SIFEN_PRODUCTION_URL = "https://sifen.set.gov.py/"
-# Fallback URLs alternativas
-SIFEN_SANDBOX_ALT = "https://sifen-staging.set.gov.py/"
-SIFEN_VERIFY_URL = "https://kset.shd/sifen/cdc/"  # URL para verificar CDC
+SIFEN_VERIFY_URL = "https://sifen.set.gov.py/consultas/"  # URL para verificar CDC
 
-CDC_QR_URL = "https://kset.shd/sifen/cdc/"
+CDC_QR_URL = "https://sifen.set.gov.py/consultas/"
 
 
 def calcular_cdc(d, tipo_cdc=1):
@@ -76,6 +76,21 @@ def _fmt_dt(dt):
     if isinstance(dt, datetime):
         return dt.strftime("%Y-%m-%dT%H:%M:%S")
     return str(dt)
+
+
+def _parse_iva(item, default=10):
+    """Parsea el valor IVA de un item manejando string 'exento'."""
+    raw = item.get("iva", default)
+    if raw is None:
+        return int(default)
+    if isinstance(raw, str):
+        if raw.lower() in ("exento", "exenta", "exonerado", "0"):
+            return 0
+        try:
+            return int(raw)
+        except (ValueError, TypeError):
+            return int(default)
+    return int(raw)
 
 
 def generar_de_xml(config, factura_data, cliente, items, operacion="1"):
@@ -181,7 +196,7 @@ def generar_de_xml(config, factura_data, cliente, items, operacion="1"):
     for item in items:
         cantidad = item.get("cantidad", 1)
         precio = float(item.get("precio", 0))
-        iva_tipo = int(item.get("iva", 10))
+        iva_tipo = _parse_iva(item, 10)
         total_item = cantidad * precio
         subtotal += total_item
 
@@ -229,7 +244,7 @@ def generar_de_xml(config, factura_data, cliente, items, operacion="1"):
         etree.SubElement(gItem, "dUniMed").text = "99"  # 99=Unidad
         etree.SubElement(gItem, "dPrecioUni").text = f"{float(item.get('precio', 0)):.0f}"
         
-        iva_tipo = int(item.get("iva", 10))
+        iva_tipo = _parse_iva(item, 10)
         if iva_tipo == 0:
             etree.SubElement(gItem, "dExeItem").text = "S"
         else:
@@ -336,7 +351,7 @@ def enviar_a_sifen(xml_str, cdc, modo="sandbox"):
         dict con resultado de la comunicación
     """
     import time
-    urls = [SIFEN_SANDBOX_URL, SIFEN_SANDBOX_ALT] if modo == "sandbox" else [SIFEN_PRODUCTION_URL]
+    urls = [SIFEN_SANDBOX_URL] if modo == "sandbox" else [SIFEN_PRODUCTION_URL]
     max_retries = 3
 
     for base_url in urls:

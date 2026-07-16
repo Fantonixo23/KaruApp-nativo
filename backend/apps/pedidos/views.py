@@ -345,7 +345,8 @@ def crear_pedido(request):
                 'cantidad': cantidad,
                 'precio': str(precio_item),
                 'variante': item.get('variante'),
-                'nota': item.get('nota', '')
+                'nota': item.get('nota', ''),
+                'iva': producto.iva,
             })
             total += cantidad * precio_item
         
@@ -543,7 +544,8 @@ def agregar_items(request, pk):
                 'cantidad': cantidad,
                 'precio': str(precio_item),
                 'variante': item.get('variante'),
-                'nota': item.get('nota', '')
+                'nota': item.get('nota', ''),
+                'iva': producto.iva,
             })
         
         with transaction.atomic():
@@ -1110,6 +1112,12 @@ def cobrar_mesa(request, mesa_id):
                     sifen_result = generar_factura_completa(config, pedido_dict, cliente_data)
 
                     first_pedido = pedidos.first() if pedidos.exists() else None
+
+                    sr = sifen_result.get('sifen_result', {})
+                    sifen_envio_ok = sr.get('success', False)
+                    sifen_estado_val = 'enviada' if sifen_envio_ok else 'pendiente'
+                    sifen_mensaje_val = sr.get('response') or sr.get('error', '')
+
                     factura = Factura.objects.create(
                         numero=num_factura,
                         pedido=first_pedido,
@@ -1120,6 +1128,8 @@ def cobrar_mesa(request, mesa_id):
                         kude=sifen_result['kude'],
                         qr_base64=sifen_result['qr_base64'],
                         estado='generada',
+                        sifen_estado=sifen_estado_val,
+                        sifen_mensaje=sifen_mensaje_val,
                         total=total_final,
                     )
 
@@ -1128,6 +1138,8 @@ def cobrar_mesa(request, mesa_id):
                         'cdc': factura.cdc,
                         'kude': factura.kude,
                         'qr_base64': factura.qr_base64,
+                        'sifen_estado': factura.sifen_estado,
+                        'sifen_mensaje': factura.sifen_mensaje,
                     }
                 except Exception as factura_err:
                     if timbrado:

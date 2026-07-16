@@ -194,8 +194,28 @@ function buildTicketFactura(pedido, negocio, cliente, numero) {
   data += _divider()
 
   data += _row('TOTAL Gs:', _formatGuarani(pedido?.total || 0))
-  data += _spacer(2)
 
+  if (pedido?.qr_base64) {
+    data += _divider()
+    data += _boldCenter('FACTURA ELECTRONICA')
+    if (pedido?.cdc) data += _left('CDC:')
+    if (pedido?.cdc) data += _left(_sanitize(pedido.cdc))
+    if (pedido?.kude) data += _left('KUDE:')
+    if (pedido?.kude) data += _left(_sanitize(pedido.kude))
+  }
+
+  if (pedido?.vuelto > 0) {
+    data += _divider()
+    data += _bold('VUELTO: ' + _formatGuarani(pedido.vuelto))
+  }
+
+  if (pedido?.sifen_error) {
+    data += _divider()
+    data += _bold('ERROR SIFEN:')
+    data += _left(_sanitize(pedido.sifen_error))
+  }
+
+  data += _spacer(2)
   data += CMD.CUT_FULL
   data += CMD.DRAWER
 

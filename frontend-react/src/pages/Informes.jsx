@@ -832,6 +832,7 @@ export default function Informes() {
           negocio={empresa}
           cliente={{ nombre: pedidoPrint.cliente_nombre, ruc: pedidoPrint.cliente_ruc }}
           factura={pedidoPrint.factura}
+          sifen_error={pedidoPrint.sifen_mensaje || null}
           onClose={() => setPedidoPrint(null)}
           numero={pedidoPrint.factura?.numero || pedidoPrint.numero_orden}
         />

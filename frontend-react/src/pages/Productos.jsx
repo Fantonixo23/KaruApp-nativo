@@ -14,6 +14,7 @@ const FIELDS = {
   precio: '',
   categoria_id: '',
   disponible: true,
+  iva: 10,
   imagen: '',
   variantes: [],
 }
@@ -105,6 +106,7 @@ export default function Productos() {
         precio: String(producto.precio || ''),
         categoria_id: producto.categoria_id ? String(producto.categoria_id) : '',
         disponible: producto.disponible ?? true,
+        iva: producto.iva ?? 10,
         imagen: producto.imagen || '',
         variantes: Array.isArray(producto.variantes) ? [...producto.variantes] : [],
       })
@@ -207,6 +209,7 @@ export default function Productos() {
       precio: parseInt(form.precio, 10),
       categoria_id: form.categoria_id ? parseInt(form.categoria_id, 10) : null,
       disponible: form.disponible,
+      iva: form.iva,
       imagen: form.imagen,
       variantes: form.variantes.map(v => ({
         ...v,
@@ -447,9 +450,18 @@ export default function Productos() {
                       {formatGuarani(p.precio)}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                      <span style={{ fontSize: '10px', color: darkMode ? '#888' : '#999' }}>
-                        {p.categoria_nombre || 'Sin categoría'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '10px', color: darkMode ? '#888' : '#999' }}>
+                          {p.categoria_nombre || 'Sin categoría'}
+                        </span>
+                        <span style={{
+                          fontSize: '8px', fontWeight: '700', padding: '1px 5px', borderRadius: '4px',
+                          background: p.iva === 0 ? '#9E9E9E' : p.iva === 5 ? '#FF9800' : p.iva === 15 ? '#E53935' : '#4CAF50',
+                          color: 'white',
+                        }}>
+                          {p.iva === 0 ? 'EXE' : `${p.iva}%`}
+                        </span>
+                      </div>
                       <span
                         onClick={(e) => { e.stopPropagation(); toggleDisponible(p.id, p.disponible) }}
                         style={{
@@ -562,6 +574,24 @@ export default function Productos() {
                   color: 'white', fontWeight: '700', fontSize: '11px',
                 }}
               >{form.disponible ? 'SÍ' : 'NO'}</button>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '12px', color: darkMode ? '#ccc' : '#666' }}>IVA:</span>
+              <select
+                value={form.iva}
+                onChange={(e) => handleChange('iva', parseInt(e.target.value, 10))}
+                style={{
+                  padding: '6px 12px', border: `1px solid ${darkMode ? 'rgba(255,255,255,0.15)' : '#d0d0d0'}`,
+                  borderRadius: '8px', background: darkMode ? '#2a2a2a' : '#f8f8f8',
+                  color: darkMode ? 'white' : '#1a1a1a', fontSize: '12px', outline: 'none', cursor: 'pointer',
+                }}
+              >
+                <option value={0}>Exento (0%)</option>
+                <option value={5}>5%</option>
+                <option value={10}>10%</option>
+                <option value={15}>15%</option>
+              </select>
             </div>
 
             <div style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#ccc' : '#666', marginBottom: '6px' }}>

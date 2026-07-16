@@ -32,6 +32,20 @@ def get_ambiente(ambiente_str: str) -> int:
     return TEST
 
 
+def _parse_iva(item_val, default=10):
+    """Parsea el valor IVA de un item, manejando string 'exento'."""
+    if item_val is None:
+        return int(default)
+    if isinstance(item_val, str):
+        if item_val.lower() in ('exento', 'exenta', 'exonerado', '0'):
+            return 0
+        try:
+            return int(item_val)
+        except (ValueError, TypeError):
+            return int(default)
+    return int(item_val)
+
+
 def generar_de01(pedido, config, cliente_ruc='44444444-7', cliente_nombre='CONSUMIDOR FINAL'):
     if not SIFEN_AVAILABLE:
         raise ImportError('SIFEN library not installed. Run: pip install sifen[sign,transmissao]')
@@ -49,48 +63,114 @@ def generar_de01(pedido, config, cliente_ruc='44444444-7', cliente_nombre='CONSU
     else:
         num_doc = str(pedido.get('numero_orden', '1')).zfill(7)
 
+    default_iva = int(config.tasa_iva or 10)
+
+    sub_exe = Decimal('0')
+    sub_5 = Decimal('0')
+    sub_10 = Decimal('0')
+    iva_5 = Decimal('0')
+    iva_10 = Decimal('0')
+    base_grav_5 = Decimal('0')
+    base_grav_10 = Decimal('0')
     total_bruto = Decimal('0')
-    total_iva = Decimal('0')
     total_gral = Decimal('0')
-    tasa_iva_val = int(config.tasa_iva or 10)
     items = []
 
     for idx, item in enumerate(pedido.get('items', []), start=1):
         cantidad = Decimal(str(item.get('cantidad', 1)))
         precio = Decimal(str(item.get('precio', 0)))
         total_item = cantidad * precio
-        iva_item = total_item * Decimal(str(tasa_iva_val)) / Decimal('100')
-        base_grav = total_item - iva_item
+        iva_tipo = _parse_iva(item.get('iva'), default_iva)
 
         desc_item = item.get('producto_nombre') or item.get('nombre') or ''
         if item.get('variante'):
             desc_item += f' - {item["variante"]}'
 
-        g_item = TgCamItem(
-            dCodInt=str(item.get('producto_id', '')),
-            dDesProSer=desc_item[:100],
-            cUniMed=TcUniMed.VALUE_77,
-            dDesUniMed='UNI',
-            dCantProSer=cantidad,
-            gValorItem=TgValorItem(
-                dPUniProSer=precio,
-                dDescItem=Decimal('0'),
-                dTotOpeItem=total_item,
-                dTotOpeGs=total_item,
-            ),
-            gCamIVA=TgCamIva(
-                iAfecIVA=TiAfecIva.VALUE_1,
-                dDesAfecIVA='Gravado IVA',
-                dPropIVA=100,
-                dTasaIVA=tasa_iva_val,
-                dBasGravIVA=base_grav,
-                dLiqIVAItem=iva_item,
-            ),
-        )
+        if iva_tipo == 0:
+            g_item = TgCamItem(
+                dCodInt=str(item.get('producto_id', '')),
+                dDesProSer=desc_item[:100],
+                cUniMed=TcUniMed.VALUE_77,
+                dDesUniMed='UNI',
+                dCantProSer=cantidad,
+                gValorItem=TgValorItem(
+                    dPUniProSer=precio,
+                    dDescItem=Decimal('0'),
+                    dTotOpeItem=total_item,
+                    dTotOpeGs=total_item,
+                ),
+                gCamIVA=TgCamIva(
+                    iAfecIVA=TiAfecIva.VALUE_2,
+                    dDesAfecIVA='Exento',
+                    dPropIVA=0,
+                    dTasaIVA=0,
+                    dBasGravIVA=Decimal('0'),
+                    dLiqIVAItem=Decimal('0'),
+                ),
+            )
+            sub_exe += total_item
+        elif iva_tipo == 5:
+            iva_item = total_item * Decimal('5') / Decimal('105')
+            base_grav = total_item - iva_item
+            g_item = TgCamItem(
+                dCodInt=str(item.get('producto_id', '')),
+                dDesProSer=desc_item[:100],
+                cUniMed=TcUniMed.VALUE_77,
+                dDesUniMed='UNI',
+                dCantProSer=cantidad,
+                gValorItem=TgValorItem(
+                    dPUniProSer=precio,
+                    dDescItem=Decimal('0'),
+                    dTotOpeItem=total_item,
+                    dTotOpeGs=total_item,
+                ),
+                gCamIVA=TgCamIva(
+                    iAfecIVA=TiAfecIva.VALUE_1,
+                    dDesAfecIVA='Gravado IVA',
+                    dPropIVA=100,
+                    dTasaIVA=5,
+                    dBasGravIVA=base_grav,
+                    dLiqIVAItem=iva_item,
+                ),
+            )
+            sub_5 += total_item
+            iva_5 += iva_item
+            base_grav_5 += base_grav
+        else:
+            iva_tipo = 10
+            iva_item = total_item * Decimal('10') / Decimal('110')
+            base_grav = total_item - iva_item
+            g_item = TgCamItem(
+                dCodInt=str(item.get('producto_id', '')),
+                dDesProSer=desc_item[:100],
+                cUniMed=TcUniMed.VALUE_77,
+                dDesUniMed='UNI',
+                dCantProSer=cantidad,
+                gValorItem=TgValorItem(
+                    dPUniProSer=precio,
+                    dDescItem=Decimal('0'),
+                    dTotOpeItem=total_item,
+                    dTotOpeGs=total_item,
+                ),
+                gCamIVA=TgCamIva(
+                    iAfecIVA=TiAfecIva.VALUE_1,
+                    dDesAfecIVA='Gravado IVA',
+                    dPropIVA=100,
+                    dTasaIVA=10,
+                    dBasGravIVA=base_grav,
+                    dLiqIVAItem=iva_item,
+                ),
+            )
+            sub_10 += total_item
+            iva_10 += iva_item
+            base_grav_10 += base_grav
+
         items.append(g_item)
         total_bruto += total_item
-        total_iva += iva_item
         total_gral += total_item
+
+    total_iva = iva_5 + iva_10
+    total_base_grav = base_grav_5 + base_grav_10
 
     # Timestamp for Id generation
     id_ts = now.strftime('%Y%m%d%H%M%S%f')[:19]
@@ -102,6 +182,7 @@ def generar_de01(pedido, config, cliente_ruc='44444444-7', cliente_nombre='CONSU
     # Build RDe
     rde = RDe(
         dVerFor='150',
+        Signature=None,
         DE=TDe(
             Id=de_id,
             dDVId=dv,
@@ -109,7 +190,7 @@ def generar_de01(pedido, config, cliente_ruc='44444444-7', cliente_nombre='CONSU
             gOpeDE=TgCopeDe(
                 iTipEmi='1',
                 dDesTipEmi='Normal',
-                dCodSeg='000000001',
+                dCodSeg=f"{config.csc_id}0000000{config.csc_id}",
             ),
             gTimb=TgDtim(
                 iTiDE='1',
@@ -185,7 +266,9 @@ def generar_de01(pedido, config, cliente_ruc='44444444-7', cliente_nombre='CONSU
                 gCamItem=items,
             ),
             gTotSub=TgTotSub(
-                dSub10=total_bruto,
+                dSubExe=sub_exe,
+                dSub5=sub_5,
+                dSub10=sub_10,
                 dTotOpe=total_bruto,
                 dTotDesc=Decimal('0'),
                 dPorcDescTotal=Decimal('0'),
@@ -193,9 +276,11 @@ def generar_de01(pedido, config, cliente_ruc='44444444-7', cliente_nombre='CONSU
                 dAnticipo=Decimal('0'),
                 dRedon=Decimal('0'),
                 dTotGralOpe=total_gral,
-                dIVA10=total_iva,
-                dBaseGrav10=total_bruto - total_iva,
-                dTBasGraIVA=total_bruto - total_iva,
+                dIVA5=iva_5,
+                dIVA10=iva_10,
+                dBaseGrav5=base_grav_5,
+                dBaseGrav10=base_grav_10,
+                dTBasGraIVA=total_base_grav,
                 dTotIVA=total_iva,
                 dTotalGs=total_gral,
             ),

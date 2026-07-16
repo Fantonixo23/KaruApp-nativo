@@ -42,7 +42,23 @@ def get_config(request):
             'estado': config.estado,
             'fecha_inicio': config.fecha_inicio.isoformat() if config.fecha_inicio else None,
             'fecha_vencimiento': config.fecha_vencimiento.isoformat() if config.fecha_vencimiento else None,
-            'tamano_papel': config.tamano_papel or '58mm'
+            'tamano_papel': config.tamano_papel or '58mm',
+            # SIFEN fields
+            'sifen_habilitado': config.sifen_habilitado,
+            'ambiente_sifen': config.ambiente_sifen or 'test',
+            'certificado_configurado': bool(config.certificado_pkcs12),
+            'certificado_nombre': config.certificado_pkcs12.name.split('/')[-1] if config.certificado_pkcs12 else None,
+            'csc_configurado': bool(config.csc),
+            'csc_id': config.csc_id,
+            'cDepEmi': config.cDepEmi,
+            'cCiuEmi': config.cCiuEmi,
+            'dDesDepEmi': config.dDesDepEmi,
+            'dDesCiuEmi': config.dDesCiuEmi,
+            'cDirEmi': config.cDirEmi,
+            'dNumCas': config.dNumCas,
+            'dEmailE': config.dEmailE,
+            'gActEco_codigo': config.gActEco_codigo,
+            'gActEco_descripcion': config.gActEco_descripcion,
         }
     })
 
@@ -71,6 +87,21 @@ def update_config(request):
             config.establecimiento = data.get('establecimiento', config.establecimiento)
             config.punto_expedicion = data.get('punto_expedicion', config.punto_expedicion)
             config.tamano_papel = data.get('tamano_papel', config.tamano_papel)
+            # SIFEN fields
+            config.sifen_habilitado = data.get('sifen_habilitado', config.sifen_habilitado)
+            config.ambiente_sifen = data.get('ambiente_sifen', config.ambiente_sifen)
+            config.csc = data.get('csc', config.csc)
+            config.csc_pin = data.get('csc_pin', config.csc_pin)
+            config.csc_id = data.get('csc_id', config.csc_id)
+            config.cDepEmi = data.get('cDepEmi', config.cDepEmi)
+            config.cCiuEmi = data.get('cCiuEmi', config.cCiuEmi)
+            config.dDesDepEmi = data.get('dDesDepEmi', config.dDesDepEmi)
+            config.dDesCiuEmi = data.get('dDesCiuEmi', config.dDesCiuEmi)
+            config.cDirEmi = data.get('cDirEmi', config.cDirEmi)
+            config.dNumCas = data.get('dNumCas', config.dNumCas)
+            config.dEmailE = data.get('dEmailE', config.dEmailE)
+            config.gActEco_codigo = data.get('gActEco_codigo', config.gActEco_codigo)
+            config.gActEco_descripcion = data.get('gActEco_descripcion', config.gActEco_descripcion)
             config.save()
         
         return JsonResponse({
@@ -82,7 +113,12 @@ def update_config(request):
                 'telefono': config.telefono,
                 'timbrado_numero': config.timbrado_numero,
                 'establecimiento': config.establecimiento,
-                'punto_expedicion': config.punto_expedicion
+                'punto_expedicion': config.punto_expedicion,
+                'sifen_habilitado': config.sifen_habilitado,
+                'ambiente_sifen': config.ambiente_sifen,
+                'csc_configurado': bool(config.csc),
+                'csc_id': config.csc_id,
+                'certificado_configurado': bool(config.certificado_pkcs12),
             }
         })
     except Exception as e:

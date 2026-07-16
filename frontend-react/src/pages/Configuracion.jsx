@@ -6,6 +6,26 @@ import { formatGuarani } from '../utils/currency'
 import { getApiUrl } from '../utils/api'
 
 const API_URL = getApiUrl()
+const DEPARTAMENTOS = {
+  '1': { nombre: 'Capital', ciudades: { '1': 'ASUNCION (DISTRITO)' } },
+  '2': { nombre: 'Concepción', ciudades: { '1': 'CONCEPCION', '2': 'HORQUETA', '3': 'LORETO', '4': 'YBY YAU' } },
+  '3': { nombre: 'San Pedro', ciudades: { '1': 'SAN PEDRO DE YCUAMANDIYU', '2': 'SANTA ROSA', '3': 'CHORE' } },
+  '4': { nombre: 'Cordillera', ciudades: { '1': 'CAACUPE', '2': 'PIRIBEBUY', '3': 'TOBATI', '4': 'ALTOS' } },
+  '5': { nombre: 'Guairá', ciudades: { '1': 'VILLARRICA', '2': 'INDEPENDENCIA', '3': 'MBOCAYATY' } },
+  '6': { nombre: 'Caaguazú', ciudades: { '1': 'CORONEL OVIEDO', '2': 'CAAGUAZU', '3': 'REPATRIACION' } },
+  '7': { nombre: 'Caazapá', ciudades: { '1': 'CAAZAPA', '2': 'YUTY', '3': 'SAN JUAN NEPOMUCENO' } },
+  '8': { nombre: 'Itapúa', ciudades: { '1': 'ENCARNACION', '2': 'CAMBYRETA', '3': 'CARMEN DEL PARANA' } },
+  '9': { nombre: 'Misiones', ciudades: { '1': 'SAN JUAN BAUTISTA', '2': 'SANTA MARIA', '3': 'AYOLAS' } },
+  '10': { nombre: 'Paraguarí', ciudades: { '1': 'PARAGUARI', '2': 'PIRAYU', '3': 'YAGUARON', '4': 'CARAPEGUA' } },
+  '11': { nombre: 'Alto Paraná', ciudades: { '1': 'CIUDAD DEL ESTE', '2': 'PRESIDENTE FRANCO', '3': 'HERNANDARIAS', '4': 'MINGA GUAZU', '5': 'MINGA PORA', '6': 'SANTA RITA' } },
+  '12': { nombre: 'Central', ciudades: { '1': 'AREGUA', '2': 'LUQUE', '3': 'CAPIATA', '4': 'ITAGUA', '5': 'LAMBARE', '6': 'FERNANDO DE LA MORA', '7': 'SAN LORENZO' } },
+  '13': { nombre: 'Ñeembucú', ciudades: { '1': 'PILAR' } },
+  '14': { nombre: 'Amambay', ciudades: { '1': 'PEDRO JUAN CABALLERO', '2': 'BELLA VISTA' } },
+  '15': { nombre: 'Canindeyú', ciudades: { '1': 'SALTO DEL GUAIRA', '2': 'YPEJHU', '3': 'CURUGUATY' } },
+  '16': { nombre: 'Presidente Hayes', ciudades: { '1': 'VILLA HAYES', '2': 'BENJAMIN ACEVAL', '3': 'NANAWA' } },
+  '17': { nombre: 'Boquerón', ciudades: { '1': 'FILADELFIA', '2': 'LOMA PLATA', '3': 'MARISCAL ESTIGARRIBIA' } },
+  '18': { nombre: 'Alto Paraguay', ciudades: { '1': 'FUERTE OLIMPO' } },
+}
 
 const ICONOS_DISPONIBLES = [
   'payments', 'credit_card', 'account_balance', 'qr_code', 'qr_code_scanner',
@@ -50,6 +70,7 @@ export default function Configuracion() {
   const [printServerCocina, setPrintServerCocina] = useState(() => localStorage.getItem('pipper_print_server_cocina') || 'http://localhost:5123')
   const [printerCocina, setPrinterCocina] = useState(() => localStorage.getItem('pipper_printer_cocina') || '')
 
+  const [sifenHabilitado, setSifenHabilitado] = useState(false)
   const [backupInfo, setBackupInfo] = useState(null)
   const [backupLoading, setBackupLoading] = useState(false)
   const [backupMsg, setBackupMsg] = useState('')
@@ -59,6 +80,12 @@ export default function Configuracion() {
     cargarMetodos()
     cargarBackupStatus()
   }, [])
+
+  useEffect(() => {
+    if (datos.sifen_habilitado !== undefined) {
+      setSifenHabilitado(datos.sifen_habilitado)
+    }
+  }, [datos.sifen_habilitado])
 
   const cargarMetodos = async () => {
     try {
@@ -289,7 +316,62 @@ export default function Configuracion() {
 
         <div style={s.card(darkMode)} className="animate">
           <h2 style={s.cardTitle(darkMode)}>Datos de Facturacion</h2>
-          <p style={s.subtitle(darkMode)}>Configuracion del timbrado SET</p>
+          <p style={s.subtitle(darkMode)}>Configuracion del timbrado SET y facturación electrónica SIFEN</p>
+
+          {/* SWITCH HABILITAR SIFEN */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '12px', borderRadius: '10px', marginBottom: '16px',
+            background: sifenHabilitado ? 'rgba(76,175,80,0.1)' : (darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+            border: `1px solid ${sifenHabilitado ? 'rgba(76,175,80,0.3)' : (darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`
+          }}>
+            <div>
+              <div style={{ fontWeight: '700', fontSize: '14px', color: darkMode ? '#fff' : '#333' }}>
+                Facturación Electrónica SIFEN
+              </div>
+              <div style={{ fontSize: '12px', color: sifenHabilitado ? '#2E7D32' : '#999', marginTop: '2px' }}>
+                {sifenHabilitado ? '✔ Activado — se generarán facturas electrónicas al cobrar' : 'Desactivado'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              {sifenHabilitado && (
+                <Link to="/app/sifen" style={{
+                  padding: '8px 14px', borderRadius: '8px',
+                  background: '#FF9800', color: 'white', fontWeight: '700',
+                  fontSize: '12px', textDecoration: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '4px'
+                }}>
+                  <span className="material-icons" style={{ fontSize: '16px' }}>settings</span>
+                  Configurar
+                </Link>
+              )}
+              <button
+                onClick={async () => {
+                  const nuevoValor = !sifenHabilitado
+                  setSifenHabilitado(nuevoValor)
+                  try {
+                    await fetch(`${API_URL}/facturacion/config/actualizar`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ sifen_habilitado: nuevoValor })
+                    })
+                  } catch {}
+                }}
+                style={{
+                  position: 'relative', width: '44px', height: '24px', flexShrink: 0,
+                  background: sifenHabilitado ? '#4CAF50' : (darkMode ? '#555' : '#ccc'),
+                  borderRadius: '12px', cursor: 'pointer', border: 'none', padding: 0
+                }}
+              >
+                <div style={{
+                  position: 'absolute', top: '2px', left: sifenHabilitado ? '22px' : '2px',
+                  width: '20px', height: '20px', borderRadius: '50%',
+                  background: 'white', transition: 'left 0.2s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                }} />
+              </button>
+            </div>
+          </div>
           
           <div style={s.field}>
             <label style={s.label(darkMode)}>Numero de Timbrado</label>

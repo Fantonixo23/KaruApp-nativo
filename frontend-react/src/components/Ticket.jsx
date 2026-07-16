@@ -53,7 +53,7 @@ const formatDate = (date) => {
 import { useState } from 'react'
 import { printTicketFactura } from '../utils/qzPrint'
 
-export const TicketFactura = ({ pedido, negocio, cliente, onClose, numero }) => {
+export const TicketFactura = ({ pedido, negocio, cliente, onClose, numero, vuelto, montoRecibido, factura, sifen_error }) => {
   const [imprimiendo, setImprimiendo] = useState(false)
   const items = pedido?.items || []
   const numeroFactura = numero || pedido?.numero_orden || 1
@@ -190,6 +190,46 @@ export const TicketFactura = ({ pedido, negocio, cliente, onClose, numero }) => 
 
           <div className="print-divider" style={styles.divider} />
 
+          {pedido?.qr_base64 && (
+            <>
+              <div style={{ textAlign: 'center', margin: '8px 0' }}>
+                <p style={styles.label}>FACTURA ELECTRÓNICA</p>
+                <img
+                  src={`data:image/png;base64,${pedido.qr_base64}`}
+                  alt="QR Factura"
+                  style={{ width: '100px', height: '100px', margin: '4px auto', display: 'block' }}
+                />
+                {pedido?.cdc && (
+                  <p style={{ fontSize: '9px', wordBreak: 'break-all', margin: '2px 0', color: '#000' }}>
+                    CDC: {pedido.cdc}
+                  </p>
+                )}
+                {pedido?.kude && (
+                  <p style={{ fontSize: '9px', wordBreak: 'break-all', margin: '2px 0', color: '#000' }}>
+                    KUDE: {pedido.kude}
+                  </p>
+                )}
+              </div>
+              <div className="print-divider" style={styles.divider} />
+            </>
+          )}
+
+          {vuelto > 0 && (
+            <div style={{ textAlign: 'center', margin: '4px 0' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '14px', color: '#000', margin: '2px 0' }}>
+                VUELTO: {formatGuarani(vuelto)}
+              </p>
+            </div>
+          )}
+
+          {sifen_error && (
+            <div style={{ textAlign: 'center', margin: '4px 0', padding: '4px', border: '1px solid #E53935' }}>
+              <p style={{ fontWeight: 'bold', fontSize: '10px', color: '#E53935', margin: '2px 0' }}>
+                Error SIFEN: {sifen_error}
+              </p>
+            </div>
+          )}
+
           <div style={styles.footer}>
             <p>Gracias por su preferencia!</p>
           </div>
@@ -228,19 +268,22 @@ function calcularIVA(items) {
   let subtotal = 0
   let iva10 = 0
   let iva5 = 0
-  
+  let exentas = 0
+
   items.forEach(item => {
     const total = item.cantidad * item.precio
     subtotal += total
-    const tipoIva = item.iva || 10
-    if (tipoIva === 5) {
-      iva5 += total * 0.05
+    const tipoIva = (item.iva !== undefined && item.iva !== null && item.iva !== '') ? Number(item.iva) : 10
+    if (tipoIva === 0) {
+      exentas += total
+    } else if (tipoIva === 5) {
+      iva5 += total * 5 / 105
     } else {
-      iva10 += total * 0.10
+      iva10 += total * 10 / 110
     }
   })
-  
-  return { subtotal, iva10, iva5 }
+
+  return { subtotal, iva10, iva5, exentas }
 }
 
 const styles = {

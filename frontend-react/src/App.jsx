@@ -8,6 +8,7 @@ import Informes from './pages/Informes'
 import Productos from './pages/Productos'
 import Inventario from './pages/Inventario'
 import Configuracion from './pages/Configuracion'
+import SifenConfig from './pages/SifenConfig'
 import { Config, Mesero, ParaLlevar, Admin } from './pages/Placeholders'
 import { FullscreenProvider } from './hooks/useFullscreen.jsx'
 import { useMediaQuery } from './hooks/useMediaQuery'
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="/app/productos" element={<Productos />} />
         <Route path="/app/inventario" element={<Inventario />} />
         <Route path="/app/configuracion" element={<Configuracion />} />
+        <Route path="/app/sifen" element={<SifenConfig />} />
         <Route path="/app/config" element={<Config />} />
         <Route path="/app/mesero" element={<Mesero />} />
         <Route path="/app/para-llevar" element={<ParaLlevar />} />

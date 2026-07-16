@@ -32,6 +32,16 @@ class Producto(models.Model):
     imagen = models.URLField(blank=True, null=True, max_length=500)
     imagen_archivo = models.ImageField(upload_to='productos/', null=True, blank=True)
     variantes = models.JSONField(blank=True, null=True)
+    iva = models.IntegerField(
+        default=10,
+        choices=[
+            (0, 'Exento'),
+            (5, '5%'),
+            (10, '10%'),
+            (15, '15%'),
+        ],
+        help_text='Tasa de IVA aplicable al producto'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

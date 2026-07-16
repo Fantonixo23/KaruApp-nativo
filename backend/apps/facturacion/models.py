@@ -39,6 +39,7 @@ class Configuracion(models.Model):
         max_length=20, blank=True, null=True,
         help_text='PIN del CSC'
     )
+    csc_id = models.IntegerField(default=1, help_text='ID del CSC (1 o 2) - identifica cuál CSC está activo')
     cDepEmi = models.CharField(max_length=10, default='1', help_text='Código de departamento (SIFEN)')
     cCiuEmi = models.CharField(max_length=10, default='1', help_text='Código de ciudad/distrito')
     dDesDepEmi = models.CharField(max_length=100, default='CAPITAL', help_text='Descripción del departamento')
@@ -57,6 +58,7 @@ class Configuracion(models.Model):
         default='58mm',
         help_text='Tamaño de papel para impresión térmica'
     )
+    sifen_habilitado = models.BooleanField(default=False, help_text='Habilitar facturación electrónica SIFEN')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

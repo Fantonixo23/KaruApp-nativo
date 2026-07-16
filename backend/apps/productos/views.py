@@ -159,6 +159,7 @@ def lista_productos(request):
             'categoria_id': p.categoria_id,
             'categoria_nombre': p.categoria.nombre if p.categoria else None,
             'disponible': p.disponible,
+            'iva': p.iva,
             'imagen': imagen_url or imagen_archivo_url,
             'imagen_archivo': imagen_archivo_url,
             'variantes': p.variantes
@@ -193,6 +194,7 @@ def crear_producto(request):
             precio=precio,
             categoria_id=categoria_id,
             disponible=disponible,
+            iva=data.get('iva', 10),
             variantes=variantes,
             imagen=data.get('imagen', '')
         )
@@ -240,6 +242,7 @@ def modificar_producto(request, pk):
         producto.precio = data.get('precio', producto.precio)
         producto.categoria_id = data.get('categoria_id', producto.categoria_id)
         producto.disponible = data.get('disponible', producto.disponible)
+        producto.iva = data.get('iva', producto.iva)
         producto.imagen = data.get('imagen', producto.imagen)
         producto.variantes = data.get('variantes', producto.variantes)
         
