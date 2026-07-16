@@ -298,6 +298,7 @@ export default function Productos() {
     },
     catBar: {
       display: 'flex', gap: '6px', marginBottom: '16px', overflowX: 'auto', padding: '0 4px',
+      maxWidth: '100%', WebkitOverflowScrolling: 'touch',
     },
     catBtn: (active) => ({
       padding: '6px 14px', border: 'none', borderRadius: '8px',
