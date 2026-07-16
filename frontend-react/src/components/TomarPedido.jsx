@@ -16,6 +16,7 @@ const CATEGORIAS = [
 
 export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, onPedidoActualizado }) {
   const darkMode = useStore((state) => state.darkMode)
+  const isMobile = useStore((state) => state.isMobile)
 
   const [productos, setProductos] = useState([])
   const [categoria, setCategoria] = useState('todas')
@@ -311,7 +312,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
       padding: '2px 6px', fontSize: '9px', fontWeight: '700',
     },
     rightPanel: {
-      position: 'fixed', right: 0, top: '56px', bottom: 0,
+      position: 'fixed', right: 0, top: '56px', bottom: isMobile ? '65px' : 0,
       width: sidebarDerAbierto ? '30%' : '50px',
       minWidth: sidebarDerAbierto ? '280px' : '50px',
       background: darkMode ? '#1e1e1e' : 'white',
