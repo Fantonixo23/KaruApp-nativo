@@ -4,21 +4,12 @@ import { formatGuarani } from '../utils/currency'
 import { getApiUrl } from '../utils/api'
 const API_URL = getApiUrl()
 
-const CATEGORIAS = [
-  { id: 'todas', nombre: 'Todas', emoji: '🍽️' },
-  { id: 'entrada', nombre: 'Entrada', emoji: '🥗' },
-  { id: 'comida_rapida', nombre: 'Comida rápida', emoji: '🍔' },
-  { id: 'platos', nombre: 'Platos', emoji: '🍲' },
-  { id: 'bebidas', nombre: 'Bebidas', emoji: '🥤' },
-  { id: 'postres', nombre: 'Postres', emoji: '🍰' },
-  { id: 'ensaladas', nombre: 'Ensaladas', emoji: '🥬' },
-]
-
 export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, onPedidoActualizado }) {
   const darkMode = useStore((state) => state.darkMode)
   const isMobile = useStore((state) => state.isMobile)
 
   const [productos, setProductos] = useState([])
+  const [categorias, setCategorias] = useState([])
   const [categoria, setCategoria] = useState('todas')
   const [busqueda, setBusqueda] = useState('')
   const [modalProducto, setModalProducto] = useState(null)
@@ -35,15 +26,26 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
   const [cargandoCancelar, setCargandoCancelar] = useState(false)
   const [mensajeError, setMensajeError] = useState('')
   const [pagina, setPagina] = useState(1)
-  const [sidebarDerAbierto, setSidebarDerAbierto] = useState(true)
+  const [sidebarDerAbierto, setSidebarDerAbierto] = useState(false)
   const PRODUCTOS_POR_PAGINA = 24
   
   const esEdicion = !!pedidoExistente
   const editandoPedidoId = pedidoExistente?.id || null
 
   useEffect(() => {
+    loadCategorias()
     loadProductos()
   }, [])
+
+  const loadCategorias = async () => {
+    try {
+      const res = await fetch(`${API_URL}/categorias`)
+      const data = await res.json()
+      if (data.success) setCategorias(data.categorias || [])
+    } catch (e) {
+      console.error('Error cargando categorias:', e)
+    }
+  }
   
   useEffect(() => {
     // Si estamos en modo edicion, precargar items del pedido existente
@@ -79,7 +81,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
   const productosFiltrados = useMemo(() => {
     let filtrados = productos.filter(p => p.disponible)
     if (categoria !== 'todas') {
-      filtrados = filtrados.filter(p => p.categoria_nombre?.toLowerCase() === categoria)
+      filtrados = filtrados.filter(p => Number(p.categoria_id) === Number(categoria))
     }
     if (busqueda) {
       filtrados = filtrados.filter(p => p.nombre?.toLowerCase().includes(busqueda.toLowerCase()))
@@ -313,15 +315,15 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
     },
     rightPanel: {
       position: 'fixed', right: 0, top: '56px', bottom: isMobile ? '65px' : 0,
-      width: sidebarDerAbierto ? '30%' : '50px',
-      minWidth: sidebarDerAbierto ? '280px' : '50px',
+      width: 'min(30%, 320px)', minWidth: '280px',
       background: darkMode ? '#1e1e1e' : 'white',
       borderLeft: `1px solid ${darkMode ? '#333' : '#ddd'}`,
-      zIndex: 50, transition: 'width 0.3s ease',
-      display: 'flex', flexDirection: 'column',
+      zIndex: 50, display: 'flex', flexDirection: 'column',
+      transform: sidebarDerAbierto ? 'translateX(0)' : 'translateX(100%)',
+      transition: 'transform 0.3s ease',
     },
     panelHeader: {
-      padding: sidebarDerAbierto ? '12px 16px' : '12px 8px',
+      padding: '12px 16px',
       background: 'linear-gradient(135deg, #FF9800, #F57C00)',
       color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     },
@@ -332,7 +334,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
       fontSize: '16px', flexShrink: 0,
     },
     panelItems: {
-      flex: 1, overflow: 'auto', padding: sidebarDerAbierto ? '10px' : '0',
+      flex: 1, overflow: 'auto', padding: '10px',
     },
     cartItem: {
       background: darkMode ? '#2d2d2d' : '#f5f5f5',
@@ -391,12 +393,16 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
         </div>
 
         <div style={styles.categoriaBar}>
-          {CATEGORIAS.map((cat) => (
+          <button
+            style={styles.catBtn(categoria === 'todas')}
+            onClick={() => { setCategoria('todas'); setPagina(1) }}
+          >🍽️ Todas</button>
+          {categorias.map((cat) => (
             <button
               key={cat.id}
               style={styles.catBtn(categoria === cat.id)}
               onClick={() => { setCategoria(cat.id); setPagina(1) }}
-            >{cat.emoji} {cat.nombre}</button>
+            >🍽️ {cat.nombre}</button>
           ))}
         </div>
 
@@ -463,17 +469,28 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
         </div>
       </div>
 
+      {!sidebarDerAbierto && (
+        <button
+          onClick={() => setSidebarDerAbierto(true)}
+          style={{
+            position: 'fixed', right: '12px', bottom: isMobile ? '80px' : '20px',
+            width: '50px', height: '50px', border: 'none', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+            color: 'white', cursor: 'pointer', zIndex: 60,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '22px', fontWeight: '700',
+            boxShadow: '0 4px 12px rgba(255,152,0,0.4)',
+          }}
+        >🛒</button>
+      )}
       <div style={styles.rightPanel}>
         <div style={styles.panelHeader}>
-          {sidebarDerAbierto && <span style={{ fontWeight: '700', fontSize: '14px' }}>🧾 Pedido Actual</span>}
-          <button onClick={() => setSidebarDerAbierto(!sidebarDerAbierto)} style={styles.toggleBtn}>
-            {sidebarDerAbierto ? '›' : '‹'}
-          </button>
+          <span style={{ fontWeight: '700', fontSize: '14px' }}>🧾 Pedido Actual</span>
+          <button onClick={() => setSidebarDerAbierto(false)} style={styles.toggleBtn}>›</button>
         </div>
 
-        {sidebarDerAbierto && (
-          <>
-            <div style={styles.panelItems}>
+        <>
+          <div style={styles.panelItems}>
               {carrito.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px', color: darkMode ? '#666' : '#999' }}>
                   <span className="material-icons" style={{ fontSize: '36px' }}>shopping_cart</span>
@@ -531,7 +548,6 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
               </div>
             )}
           </>
-        )}
       </div>
 
       {modalProducto && (
