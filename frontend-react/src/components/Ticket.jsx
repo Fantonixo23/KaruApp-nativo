@@ -57,8 +57,9 @@ export const TicketFactura = ({ pedido, negocio, cliente, onClose, numero, vuelt
   const [imprimiendo, setImprimiendo] = useState(false)
   const items = pedido?.items || []
   const numeroFactura = numero || pedido?.numero_orden || 1
+  const tipoIvaTicket = pedido?.tipo_iva !== undefined ? Number(pedido.tipo_iva) : null
 
-  const calculos = calcularIVA(items)
+  const calculos = calcularIVA(items, tipoIvaTicket)
 
   const ruc = negocio?.ruc || '-'
   const detallePagos = pedido?.detalle_pagos || []
@@ -264,24 +265,38 @@ export const TicketFactura = ({ pedido, negocio, cliente, onClose, numero, vuelt
   )
 }
 
-function calcularIVA(items) {
+function calcularIVA(items, tipoIvaGlobal) {
   let subtotal = 0
   let iva10 = 0
   let iva5 = 0
   let exentas = 0
 
-  items.forEach(item => {
-    const total = item.cantidad * item.precio
-    subtotal += total
-    const tipoIva = (item.iva !== undefined && item.iva !== null && item.iva !== '') ? Number(item.iva) : 10
-    if (tipoIva === 0) {
-      exentas += total
-    } else if (tipoIva === 5) {
-      iva5 += total * 5 / 105
+  if (tipoIvaGlobal !== null) {
+    items.forEach(item => {
+      const total = item.cantidad * item.precio
+      subtotal += total
+    })
+    if (tipoIvaGlobal === 0) {
+      exentas = subtotal
+    } else if (tipoIvaGlobal === 5) {
+      iva5 = subtotal * 5 / 105
     } else {
-      iva10 += total * 10 / 110
+      iva10 = subtotal * 10 / 110
     }
-  })
+  } else {
+    items.forEach(item => {
+      const total = item.cantidad * item.precio
+      subtotal += total
+      const tipoIva = (item.iva !== undefined && item.iva !== null && item.iva !== '') ? Number(item.iva) : 10
+      if (tipoIva === 0) {
+        exentas += total
+      } else if (tipoIva === 5) {
+        iva5 += total * 5 / 105
+      } else {
+        iva10 += total * 10 / 110
+      }
+    })
+  }
 
   return { subtotal, iva10, iva5, exentas }
 }

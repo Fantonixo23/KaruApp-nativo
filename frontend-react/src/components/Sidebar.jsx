@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useStore } from '../store/useStore'
 import { MOBILE_HIDDEN_MODULES } from '../constants'
 import { Link, useLocation } from 'react-router-dom'
@@ -18,18 +19,28 @@ const RED = '#D32F2F'
 
 export default function Sidebar({ activePath }) {
   const isMobile = useStore((state) => state.isMobile)
+  const [isLandscape, setIsLandscape] = useState(
+    typeof window !== 'undefined' && window.innerWidth > window.innerHeight
+  )
   const location = useLocation()
   const currentPath = activePath || location.pathname
   const visibleItems = ALL_ITEMS.filter(item => !isMobile || !MOBILE_HIDDEN_MODULES.includes(item.modulo))
 
+  useEffect(() => {
+    const check = () => setIsLandscape(window.innerWidth > window.innerHeight)
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   if (isMobile) {
+    const sidebarHeight = isLandscape ? '46px' : '58px'
     return (
       <div style={{
         position: 'fixed',
         bottom: 0,
         left: 0,
         right: 0,
-        height: '58px',
+        height: sidebarHeight,
         background: '#1a1a1a',
         display: 'flex',
         alignItems: 'center',
@@ -59,7 +70,7 @@ export default function Sidebar({ activePath }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '2px',
-                padding: '6px 10px',
+                padding: isLandscape ? '4px 8px' : '6px 10px',
                 borderRadius: '8px',
                 textDecoration: 'none',
                 background: isActive ? RED : 'transparent',
@@ -67,10 +78,10 @@ export default function Sidebar({ activePath }) {
                 minWidth: 0,
               }}
             >
-              <span className="material-icons" style={{ fontSize: '22px', lineHeight: 1 }}>
+              <span className="material-icons" style={{ fontSize: isLandscape ? '18px' : '22px', lineHeight: 1 }}>
                 {item.icon}
               </span>
-              <span style={{ fontSize: '9px', fontWeight: '600', lineHeight: 1.1 }}>{item.label}</span>
+              <span style={{ fontSize: isLandscape ? '8px' : '9px', fontWeight: '600', lineHeight: 1.1 }}>{item.label}</span>
             </Link>
           )
         })}

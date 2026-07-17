@@ -51,6 +51,9 @@ export default function NuevaVenta() {
   const [modalEntregar, setModalEntregar] = useState(false)
   const [pedidoAEntregar, setPedidoAEntregar] = useState(null)
   const [empresa, setEmpresa] = useState({ nombre: '', ruc: '', direccion: '', telefono: '' })
+  const [isLandscape, setIsLandscape] = useState(
+    typeof window !== 'undefined' && window.innerWidth > window.innerHeight
+  )
   
   const { initSocket, lastUpdate, mesaUpdates, connected } = useRealTime()
   
@@ -82,6 +85,14 @@ export default function NuevaVenta() {
       loadMesas()
     }
   }, [mesaUpdates])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape)')
+    const handler = (e) => setIsLandscape(e.matches)
+    handler(mq)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const cargarDatosEmpresa = async () => {
     try {
@@ -413,7 +424,7 @@ export default function NuevaVenta() {
 
       {error && <div style={s.error}><span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '6px' }}>error_outline</span>{error}</div>}
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 60px)', position: 'relative', paddingBottom: isMobile ? '60px' : '0' }}>
+      <div style={{ display: 'flex', height: 'calc(100vh - 60px)', position: 'relative', paddingBottom: isMobile ? (isLandscape ? '46px' : '60px') : '0' }}>
         <Sidebar activePath="/app/mesas" />
 
         {vista === 'pedido' ? (
@@ -465,12 +476,12 @@ export default function NuevaVenta() {
         {vista === 'mesas' && (
           <div style={{
             ...s.panel(darkMode),
-            width: isMobile ? '100%' : '320px',
-            top: isMobile ? '0' : '60px',
-            height: isMobile ? '100%' : 'calc(100vh - 60px)',
-            zIndex: isMobile ? 1200 : 100,
-            borderLeft: isMobile ? 'none' : undefined,
-            boxShadow: isMobile ? 'none' : undefined,
+            width: isMobile && !isLandscape ? '100%' : isMobile ? 'min(60%, 460px)' : '320px',
+            top: isMobile && !isLandscape ? '0' : '60px',
+            height: isMobile && !isLandscape ? '100%' : 'calc(100vh - 60px)',
+            zIndex: isMobile && !isLandscape ? 1200 : 100,
+            borderLeft: isMobile && !isLandscape ? 'none' : undefined,
+            boxShadow: isMobile && !isLandscape ? 'none' : undefined,
           }}>
             {mesaSeleccionada && (
               <>
@@ -561,6 +572,13 @@ export default function NuevaVenta() {
                             ) : pedido.estado === 'entregado' ? (
                               <span style={{ flex: 1, textAlign: 'center', padding: '6px', color: '#4CAF50', fontSize: '10px', fontWeight: '600' }}>✓ Entregado</span>
                             ) : null}
+                            <button onClick={() => {
+                              setPedidoParaEditar(pedido)
+                              setVista('pedido')
+                            }} style={{
+                              flex: 1, padding: '6px', border: 'none', borderRadius: '6px',
+                              background: '#1976D2', color: 'white', fontSize: '10px', fontWeight: '600', cursor: 'pointer',
+                            }}>✏️ Editar</button>
                             <button onClick={() => { setPedidoACancelar(pedido); setModalCancelarConMotivo(true) }} style={{
                               flex: 1, padding: '6px', border: 'none', borderRadius: '6px',
                               background: '#E53935', color: 'white', fontSize: '10px', fontWeight: '600', cursor: 'pointer',
@@ -579,18 +597,7 @@ export default function NuevaVenta() {
                       setVista('pedido')
                     }} style={{ ...s.btnPrimario(false), background: 'linear-gradient(135deg, #4CAF50, #388E3C)' }}>
                       <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px' }}>add_circle</span>
-                      Pedido
-                    </button>
-                    <button onClick={() => {
-                      if (pedidosMesa.length > 0) {
-                        setPedidoParaEditar(pedidosMesa[0])
-                        setVista('pedido')
-                      } else {
-                        cargarPedidosMesa(mesaSeleccionada.id, true)
-                      }
-                    }} style={{ ...s.btnPrimario(false), background: 'linear-gradient(135deg, #1976D2, #1565C0)' }}>
-                      <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px' }}>edit_note</span>
-                      Editar Pedido
+                      Nuevo Pedido
                     </button>
                     <button onClick={() => setModalCuenta(true)} style={{ ...s.btnPrimario(false), background: 'linear-gradient(135deg, #FF9800, #F57C00)' }}>
                       <span className="material-icons" style={{ fontSize: '16px', verticalAlign: 'middle', marginRight: '4px' }}>receipt_long</span>
@@ -610,7 +617,7 @@ export default function NuevaVenta() {
 
       {vista === 'mesas' && (
         <>
-          <div style={{ position: 'fixed', bottom: isMobile ? '70px' : '20px', left: isMobile ? '12px' : '90px', display: 'flex', gap: '8px', zIndex: 200 }}>
+          <div style={{ position: 'fixed', bottom: isMobile ? (isLandscape ? '56px' : '70px') : '20px', left: isMobile ? '12px' : '90px', display: 'flex', gap: '8px', zIndex: isMobile && isLandscape ? 300 : 200 }}>
             <button onClick={() => setModalCrear(true)} style={s.btnAction('#4CAF50', false)}>
               <span className="material-icons" style={{ fontSize: '22px' }}>add</span>
             </button>

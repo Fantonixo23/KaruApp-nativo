@@ -346,7 +346,6 @@ def crear_pedido(request):
                 'precio': str(precio_item),
                 'variante': item.get('variante'),
                 'nota': item.get('nota', ''),
-                'iva': producto.iva,
             })
             total += cantidad * precio_item
         
@@ -545,7 +544,6 @@ def agregar_items(request, pk):
                 'precio': str(precio_item),
                 'variante': item.get('variante'),
                 'nota': item.get('nota', ''),
-                'iva': producto.iva,
             })
         
         with transaction.atomic():
@@ -795,6 +793,7 @@ def pagar_pedido(request, pk):
         data = json.loads(request.body)
         metodo_pago = data.get('metodo_pago', 'efectivo')
         propinas = data.get('propina', 0)
+        tipo_iva = data.get('tipo_iva', 10)
         dividir_pago = data.get('dividir_pago', None)
         usuario_id = data.get('usuario_id')
         marca_tarjeta = data.get('marca_tarjeta', '')
@@ -839,13 +838,19 @@ def pagar_pedido(request, pk):
             pedido.comprobante_nro = comprobante_nro
             pedido.marca_qr = marca_qr
             pedido.cuotas = cuotas
+            pedido.tipo_iva = tipo_iva
             pedido.save()
             
             descontar_inventario(pedido.items)
             
             if pedido.mesa:
-                pedido.mesa.estado = 'disponible'
-                pedido.mesa.save()
+                otros_activos = Pedido.objects.filter(
+                    mesa=pedido.mesa,
+                    estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
+                ).exclude(pk=pedido.pk).exists()
+                if not otros_activos:
+                    pedido.mesa.estado = 'disponible'
+                    pedido.mesa.save()
             
             total_con_propina = Decimal(str(pedido.total)) + Decimal(str(propinas))
             usuario_obj = Usuario.objects.filter(pk=usuario_id).first() if usuario_id else None
@@ -926,6 +931,7 @@ def cobrar_mesa(request, mesa_id):
         data = json.loads(request.body)
         metodo_pago = data.get('metodo_pago', 'efectivo')
         propinas = data.get('propina', 0)
+        tipo_iva = data.get('tipo_iva', 10)
         pagos = data.get('pagos')
 
         cliente_tipo = data.get('cliente_tipo', 'consumidor')
@@ -1014,6 +1020,7 @@ def cobrar_mesa(request, mesa_id):
                     pedido.cuotas = cuotas
                 if ultimos_4:
                     pedido.ultimos_4 = ultimos_4
+                pedido.tipo_iva = tipo_iva
                 pedido.save()
                 total_cobrado += float(pedido.total)
                 ids_cobrados.append(pedido.id)
@@ -1069,8 +1076,13 @@ def cobrar_mesa(request, mesa_id):
                     ultimo_mov.save()
         
             mesa = Mesa.objects.get(pk=mesa_id)
-            mesa.estado = 'disponible'
-            mesa.save()
+            otros_activos = Pedido.objects.filter(
+                mesa=mesa,
+                estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
+            ).exists()
+            if not otros_activos:
+                mesa.estado = 'disponible'
+                mesa.save()
         
             factura_data = None
         
@@ -1344,10 +1356,15 @@ def cancelar_pedido(request, pk):
             pedido.estado = 'cancelado'
             pedido.save()
             
-            # Liberar mesa
+            # Liberar mesa solo si no quedan otros pedidos activos
             if pedido.mesa:
-                pedido.mesa.estado = 'disponible'
-                pedido.mesa.save()
+                otros_activos = Pedido.objects.filter(
+                    mesa=pedido.mesa,
+                    estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
+                ).exclude(pk=pedido.pk).exists()
+                if not otros_activos:
+                    pedido.mesa.estado = 'disponible'
+                    pedido.mesa.save()
         
         try:
             from pipperfood.socket_events import emit_pedido_update, emit_mesa_update
@@ -1358,7 +1375,14 @@ def cancelar_pedido(request, pk):
                 'motivo': motivo
             })
             if pedido.mesa:
-                emit_mesa_update({'id': pedido.mesa.id, 'numero': pedido.mesa.numero, 'estado': 'disponible'})
+                estado_mesa = 'disponible'
+                otros_activos = Pedido.objects.filter(
+                    mesa=pedido.mesa,
+                    estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
+                ).exclude(pk=pedido.pk).exists()
+                if otros_activos:
+                    estado_mesa = 'ocupada'
+                emit_mesa_update({'id': pedido.mesa.id, 'numero': pedido.mesa.numero, 'estado': estado_mesa})
         except Exception as e:
             logger.warning(f'Error enviando socket al cancelar pedido {pedido.id}: {e}')
         

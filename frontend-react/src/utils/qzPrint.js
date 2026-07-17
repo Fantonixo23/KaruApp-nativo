@@ -154,9 +154,19 @@ function _sanitize(text) {
     .replace(/Ü/g, 'U')
 }
 
+function _getWidth() {
+  return _getPaperWidth()
+}
+
 function buildTicketFactura(pedido, negocio, cliente, numero) {
   const items = pedido?.items || []
   const numeroFactura = numero || pedido?.numero_orden || '001'
+  const tipoIva = pedido?.tipo_iva !== undefined ? Number(pedido.tipo_iva) : 10
+  const total = Number(pedido?.total || 0)
+  const propina = Number(pedido?.propina || 0)
+  const ivaMonto = tipoIva === 0 ? 0 : Math.round(total * tipoIva / (100 + tipoIva))
+  const subtotalSinIva = total - ivaMonto
+  const width = _getWidth()
   let data = ''
 
   data += CMD.INIT
@@ -186,14 +196,40 @@ function buildTicketFactura(pedido, negocio, cliente, numero) {
   data += _row('RUC:', cliente?.ruc || '44444444-7')
   data += _divider()
 
-  items.forEach(item => {
-    const nombre = _sanitize(item.producto_nombre || item.nombre || item.producto)
-    const total = item.cantidad * Number(item.precio)
-    data += _row(item.cantidad + 'x ' + nombre, _formatGuarani(total))
-  })
-  data += _divider()
+  if (items.length > 0) {
+    const colQty = 5
+    const colPrice = 10
+    const colDesc = width - colQty - colPrice
+    data += _left('Cant'.padEnd(colQty) + 'Descripcion'.padEnd(colDesc) + 'Total'.padStart(colPrice))
+    data += _divider('-')
 
-  data += _row('TOTAL Gs:', _formatGuarani(pedido?.total || 0))
+    items.forEach(item => {
+      const nombre = _sanitize(item.producto_nombre || item.nombre || item.producto)
+      const itemTotal = item.cantidad * Number(item.precio)
+      const cantStr = String(item.cantidad) + 'x'
+      const descMax = colDesc - 2
+      const nombreTrunc = nombre.length > descMax ? nombre.slice(0, descMax - 1) + '…' : nombre
+      data += _left(cantStr.padEnd(colQty) + nombreTrunc.padEnd(colDesc) + _formatGuarani(itemTotal).padStart(colPrice))
+    })
+    data += _divider()
+  }
+
+  data += _row('Subtotal sin IVA:', _formatGuarani(subtotalSinIva))
+  if (tipoIva > 0) {
+    data += _row('IVA ' + tipoIva + '%:', _formatGuarani(ivaMonto))
+  }
+  if (propina > 0) {
+    data += _row('Propina:', _formatGuarani(propina))
+  }
+  data += _divider()
+  data += CMD.LEFT + CMD.BOLD_ON + 'TOTAL Gs:'.padEnd(width - 10 - CMD.LEFT.length) + _formatGuarani(total + propina) + CMD.BOLD_OFF + CMD.LF
+
+  if (pedido?.metodo_pago) {
+    const metodoLabels = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia', qr: 'QR', mixto: 'Mixto' }
+    data += _row('Pago:', metodoLabels[pedido.metodo_pago] || pedido.metodo_pago)
+    if (pedido?.monto_recibido > 0) data += _row('Recibido:', _formatGuarani(pedido.monto_recibido))
+    if (pedido?.vuelto > 0) data += _bold('VUELTO: ' + _formatGuarani(pedido.vuelto))
+  }
 
   if (pedido?.qr_base64) {
     data += _divider()
@@ -204,17 +240,14 @@ function buildTicketFactura(pedido, negocio, cliente, numero) {
     if (pedido?.kude) data += _left(_sanitize(pedido.kude))
   }
 
-  if (pedido?.vuelto > 0) {
-    data += _divider()
-    data += _bold('VUELTO: ' + _formatGuarani(pedido.vuelto))
-  }
-
   if (pedido?.sifen_error) {
     data += _divider()
     data += _bold('ERROR SIFEN:')
     data += _left(_sanitize(pedido.sifen_error))
   }
 
+  data += _spacer(1)
+  data += _center('Gracias por su preferencia!')
   data += _spacer(2)
   data += CMD.CUT_FULL
   data += CMD.DRAWER
@@ -316,10 +349,16 @@ function buildComanda(pedido) {
 
 function buildDeliveryTicket(pedido, empresa) {
   const items = pedido?.items || []
+  const total = Number(pedido?.total || 0)
+  const tipoIva = pedido?.tipo_iva !== undefined ? Number(pedido.tipo_iva) : 10
+  const ivaMonto = tipoIva === 0 ? 0 : Math.round(total * tipoIva / (100 + tipoIva))
+  const subtotalSinIva = total - ivaMonto
+  const width = _getWidth()
   let data = ''
 
   data += CMD.INIT
   data += _center(CMD.DOUBLE_ON + _sanitize(empresa?.nombre || 'RESTAURANTE') + CMD.DOUBLE_OFF)
+  if (empresa?.telefono) data += _center('Tel: ' + _sanitize(empresa.telefono))
   data += _divider()
 
   data += _boldCenter('DELIVERY')
@@ -333,16 +372,33 @@ function buildDeliveryTicket(pedido, empresa) {
   if (pedido?.notas) data += _row('Notas:', _sanitize(pedido.notas))
   data += _divider()
 
-  items.forEach(item => {
-    const nombre = _sanitize(item.producto_nombre || item.producto)
-    const total = item.cantidad * Number(item.precio)
-    data += _row(item.cantidad + 'x ' + nombre, _formatGuarani(total))
-  })
+  if (items.length > 0) {
+    const colQty = 5
+    const colPrice = 10
+    const colDesc = width - colQty - colPrice
+    data += _left('Cant'.padEnd(colQty) + 'Descripcion'.padEnd(colDesc) + 'Total'.padStart(colPrice))
+    data += _divider('-')
 
+    items.forEach(item => {
+      const nombre = _sanitize(item.producto_nombre || item.producto)
+      const itemTotal = item.cantidad * Number(item.precio)
+      const cantStr = String(item.cantidad) + 'x'
+      const descMax = colDesc - 2
+      const nombreTrunc = nombre.length > descMax ? nombre.slice(0, descMax - 1) + '\u2026' : nombre
+      data += _left(cantStr.padEnd(colQty) + nombreTrunc.padEnd(colDesc) + _formatGuarani(itemTotal).padStart(colPrice))
+    })
+    data += _divider()
+  }
+
+  data += _row('Subtotal sin IVA:', _formatGuarani(subtotalSinIva))
+  if (tipoIva > 0) {
+    data += _row('IVA ' + tipoIva + '%:', _formatGuarani(ivaMonto))
+  }
   data += _divider()
-  data += _row('TOTAL Gs:', _formatGuarani(pedido?.total || 0))
+  data += CMD.LEFT + CMD.BOLD_ON + 'TOTAL Gs:'.padEnd(width - 10) + _formatGuarani(total) + CMD.BOLD_OFF + CMD.LF
+  data += _spacer(1)
+  data += _center('Gracias por su preferencia!')
   data += _spacer(2)
-
   data += CMD.CUT_FULL
 
   return data

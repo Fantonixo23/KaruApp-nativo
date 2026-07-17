@@ -26,7 +26,7 @@ const getInitialLicense = () => {
 export const useStore = create((set, get) => ({
   darkMode: getInitialDarkMode(),
   license: getInitialLicense(),
-  isMobile: typeof window !== 'undefined' && window.innerWidth < 768,
+  isMobile: typeof window !== 'undefined' && (window.innerWidth < 768 || (window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 1280)),
 
   setIsMobile: (val) => set({ isMobile: val }),
 

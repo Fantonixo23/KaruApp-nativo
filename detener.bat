@@ -1,19 +1,7 @@
 @echo off
 chcp 65001 >nul
-title karuAPP - Detener Servidores
-
-echo ========================================
-echo   Deteniendo servidores karuAPP...
-echo ========================================
-echo.
-
+title karuAPP - Detener servidores
+echo [*] Deteniendo servidores karuAPP...
 taskkill /f /im pythonw.exe >nul 2>&1
-
-if %errorlevel% equ 0 (
-    echo [OK] Servidores detenidos.
-) else (
-    echo [INFO] No se encontraron servidores en ejecucion.
-)
-
-echo.
-pause
+echo [OK] Servidores detenidos.
+timeout /t 2 >nul

@@ -184,6 +184,7 @@ export default function Caja() {
   }
 
   const [generarFactura, setGenerarFactura] = useState(false)
+  const [tipoIva, setTipoIva] = useState(10)
   const [showTicket, setShowTicket] = useState(false)
   const [ticketData, setTicketData] = useState(null)
   const [empresa, setEmpresa] = useState({ nombre: '', ruc: '', direccion: '', telefono: '', timbrado: '', establecimiento: '001' })
@@ -337,6 +338,13 @@ export default function Caja() {
     return total * (propina / 100)
   }
 
+  const calcularIva = () => {
+    const total = calcularTotal()
+    if (tipoIva === 0) return { monto: 0, subtotal: total }
+    const ivaMonto = total * tipoIva / (100 + tipoIva)
+    return { monto: ivaMonto, subtotal: total - ivaMonto }
+  }
+
   const totalConPropina = calcularTotal() + calcularPropina()
 
   // ====================== SELECCIONAR MESA Y COBRAR ======================
@@ -388,6 +396,7 @@ export default function Caja() {
     const body = {
       metodo_pago: metodoPago,
       propina: calcularPropina(),
+      tipo_iva: tipoIva,
       cliente_tipo: clienteDatos.tipo,
       cliente_ruc: clienteDatos.ruc || '44444444-7',
       cliente_nombre: clienteDatos.nombre || 'Consumidor Final',
@@ -431,6 +440,8 @@ export default function Caja() {
         total: totalFinal,
         detalle_pagos: data.detalle_pagos || [],
         metodo_pago: metodoPago,
+        tipo_iva: tipoIva,
+        propina: calcularPropina(),
         mesa: esDelivery ? 'Delivery' : mesaSeleccionada.numero, delivery: esDelivery, vuelto: data.vuelto || 0,
         monto_recibido: data.monto_recibido || 0,
         nombre_cliente: esDelivery ? (deliveryPedidoSeleccionado.cliente_nombre || deliveryPedidoSeleccionado.nombre_cliente || '') : '',
@@ -914,12 +925,33 @@ export default function Caja() {
               </div>
             </div>
 
+            {/* IVA */}
+            <div style={{ marginBottom: '16px' }}>
+              <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 8px' }}>Tipo de IVA</p>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[0, 5, 10].map(iva => (
+                  <button key={iva} onClick={() => setTipoIva(iva)}
+                    style={{
+                      padding: '6px 14px', border: tipoIva === iva ? '2px solid #FF9800' : '2px solid transparent',
+                      borderRadius: '8px', background: tipoIva === iva ? (darkMode ? '#3a3a3a' : '#fff') : (darkMode ? '#2a2a2a' : '#f5f5f5'),
+                      cursor: 'pointer', color: darkMode ? '#ccc' : '#555', fontSize: '12px',
+                    }}>{iva === 0 ? 'Exento' : `${iva}%`}</button>
+                ))}
+              </div>
+            </div>
+
             {/* Totales */}
             <div style={{ background: 'linear-gradient(135deg, #FF9800, #F57C00)', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>
-                <span>Subtotal</span>
-                <span>{formatGuarani(calcularTotal())}</span>
+                <span>Subtotal sin IVA</span>
+                <span>{formatGuarani(Math.round(calcularIva().subtotal))}</span>
               </div>
+              {calcularIva().monto > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>
+                  <span>IVA {tipoIva}%</span>
+                  <span>{formatGuarani(Math.round(calcularIva().monto))}</span>
+                </div>
+              )}
               {calcularPropina() > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', color: 'rgba(255,255,255,0.8)', fontSize: '13px' }}>
                   <span>Propina</span>

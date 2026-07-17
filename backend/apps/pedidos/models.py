@@ -83,6 +83,7 @@ class Pedido(models.Model):
     cliente_nombre = models.CharField(max_length=255, default='Consumidor Final')
     generar_comanda = models.BooleanField(default=False)
     generar_factura = models.BooleanField(default=False)
+    tipo_iva = models.IntegerField(default=10, help_text='Tasa de IVA aplicada al cobro (0, 5, 10)')
     
     motivo_cancelacion = models.TextField(blank=True, null=True, help_text='Motivo de cancelacion texto libre')
     cancelado_en_estado = models.CharField(max_length=20, blank=True, null=True, help_text='Estado en el que estaba cuando se cancelo')
