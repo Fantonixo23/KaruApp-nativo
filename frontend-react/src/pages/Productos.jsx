@@ -43,6 +43,8 @@ export default function Productos() {
   const [editCategoria, setEditCategoria] = useState(null)
   const [formCategoria, setFormCategoria] = useState({ nombre: '' })
   const fileInputRef = useRef(null)
+  const catBarRef = useRef(null)
+  const dragRef = useRef(null)
 
   useEffect(() => {
     initDarkMode()
@@ -83,6 +85,28 @@ export default function Productos() {
     } catch (e) {
       console.error(e)
     }
+  }
+
+  const iniciarDrag = (e) => {
+    const el = catBarRef.current
+    if (!el) return
+    el.style.cursor = 'grabbing'
+    dragRef.current = { isDown: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft }
+  }
+  const moverDrag = (e) => {
+    const el = catBarRef.current
+    const d = dragRef.current
+    if (!el || !d || !d.isDown) return
+    e.preventDefault()
+    const x = e.pageX - el.offsetLeft
+    const walk = (x - d.startX) * 1.5
+    el.scrollLeft = d.scrollLeft - walk
+  }
+  const detenerDrag = () => {
+    const d = dragRef.current
+    if (!d) return
+    d.isDown = false
+    if (catBarRef.current) catBarRef.current.style.cursor = 'grab'
   }
 
   const productosFiltrados = (() => {
@@ -295,7 +319,7 @@ export default function Productos() {
     },
     catBar: {
       display: 'flex', gap: '6px', marginBottom: '16px', overflowX: 'auto', padding: '0 4px',
-      maxWidth: '100%', WebkitOverflowScrolling: 'touch',
+      maxWidth: '100%', WebkitOverflowScrolling: 'touch', cursor: 'grab', userSelect: 'none',
     },
     catBtn: (active) => ({
       padding: '6px 14px', border: 'none', borderRadius: '8px',
@@ -388,7 +412,7 @@ export default function Productos() {
       <div style={{ ...s.body, height: isMobile ? undefined : 'calc(100vh - 64px)', minHeight: isMobile ? 'calc(100vh - 64px)' : undefined, paddingBottom: isMobile ? '60px' : '0' }}>
         <Sidebar activePath="/app/productos" />
 
-        <div style={{ ...s.main, overflow: isMobile ? 'visible' : 'auto' }}>
+        <div style={s.main}>
           <div style={{ padding: '8px 12px', background: darkMode ? '#222' : '#fff', borderBottom: `1px solid ${darkMode ? '#333' : '#ddd'}` }}>
             <input
               value={busqueda}
@@ -402,7 +426,14 @@ export default function Productos() {
               }}
             />
           </div>
-          <div style={s.catBar}>
+          <div
+            ref={catBarRef}
+            style={s.catBar}
+            onMouseDown={iniciarDrag}
+            onMouseMove={moverDrag}
+            onMouseUp={detenerDrag}
+            onMouseLeave={detenerDrag}
+          >
             <button
               key="todas"
               style={s.catBtn(categoria === 'todas')}

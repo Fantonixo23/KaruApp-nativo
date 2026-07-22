@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useStore } from '../store/useStore'
 import { formatGuarani } from '../utils/currency'
 import { getApiUrl } from '../utils/api'
@@ -27,7 +27,31 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
   const [mensajeError, setMensajeError] = useState('')
   const [pagina, setPagina] = useState(1)
   const [sidebarDerAbierto, setSidebarDerAbierto] = useState(false)
+  const catBarRef = useRef(null)
+  const dragRef = useRef(null)
   const PRODUCTOS_POR_PAGINA = 24
+
+  const iniciarDrag = (e) => {
+    const el = catBarRef.current
+    if (!el) return
+    el.style.cursor = 'grabbing'
+    dragRef.current = { isDown: true, startX: e.pageX - el.offsetLeft, scrollLeft: el.scrollLeft }
+  }
+  const moverDrag = (e) => {
+    const el = catBarRef.current
+    const d = dragRef.current
+    if (!el || !d || !d.isDown) return
+    e.preventDefault()
+    const x = e.pageX - el.offsetLeft
+    const walk = (x - d.startX) * 1.5
+    el.scrollLeft = d.scrollLeft - walk
+  }
+  const detenerDrag = () => {
+    const d = dragRef.current
+    if (!d) return
+    d.isDown = false
+    if (catBarRef.current) catBarRef.current.style.cursor = 'grab'
+  }
   
   const esEdicion = !!pedidoExistente
   const editandoPedidoId = pedidoExistente?.id || null
@@ -268,6 +292,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
       display: 'flex', gap: '6px', padding: '8px 16px', overflowX: 'auto',
       background: darkMode ? '#222' : '#fff',
       borderBottom: `1px solid ${darkMode ? '#333' : '#eee'}`,
+      cursor: 'grab', userSelect: 'none',
     },
     catBtn: (active) => ({
       padding: '6px 14px', border: 'none', borderRadius: '16px',
@@ -392,7 +417,14 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
           />
         </div>
 
-        <div style={styles.categoriaBar}>
+        <div
+          ref={catBarRef}
+          style={styles.categoriaBar}
+          onMouseDown={iniciarDrag}
+          onMouseMove={moverDrag}
+          onMouseUp={detenerDrag}
+          onMouseLeave={detenerDrag}
+        >
           <button
             style={styles.catBtn(categoria === 'todas')}
             onClick={() => { setCategoria('todas'); setPagina(1) }}

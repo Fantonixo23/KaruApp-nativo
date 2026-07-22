@@ -203,7 +203,7 @@ def crear_producto(request):
         from apps.inventario.models import Inventario
         Inventario.objects.get_or_create(
             producto=producto,
-            defaults={'stock_actual': 0, 'stock_minimo': 5, 'unidad_medida': 'und', 'precio_costo': 0}
+            defaults={'stock_actual': 100, 'stock_minimo': 5, 'unidad_medida': 'und', 'precio_costo': 0}
         )
         
         return JsonResponse({

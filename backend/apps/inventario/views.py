@@ -111,7 +111,7 @@ def crear_movimiento(request):
             if not inv:
                 inv = Inventario.objects.create(
                     producto_id=producto_id,
-                    stock_actual=0,
+                    stock_actual=100,
                     stock_minimo=5,
                     unidad_medida='und',
                     precio_costo=0
@@ -169,7 +169,7 @@ def actualizar_inventario(request):
             if not inv:
                 inv = Inventario.objects.create(
                     producto_id=producto_id,
-                    stock_actual=0,
+                    stock_actual=100,
                     stock_minimo=5,
                     unidad_medida='und',
                     precio_costo=0
