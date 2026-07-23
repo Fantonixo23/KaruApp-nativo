@@ -157,7 +157,7 @@ export default function Productos() {
   const agregarVariante = () => {
     setForm(prev => ({
       ...prev,
-      variantes: [...prev.variantes, { nombre: '', precio_extra: '0', inventario_producto_id: '' }],
+      variantes: [...prev.variantes, { nombre: '', precio: '0', inventario_producto_id: '' }],
     }))
   }
 
@@ -234,7 +234,7 @@ export default function Productos() {
       imagen: form.imagen,
       variantes: form.variantes.map(v => ({
         ...v,
-        precio_extra: parseInt(v.precio_extra || '0', 10),
+        precio: v.precio ? parseInt(v.precio, 10) : null,
         inventario_producto_id: v.inventario_producto_id ? parseInt(v.inventario_producto_id, 10) : null,
       })),
     }
@@ -667,14 +667,14 @@ export default function Productos() {
                     onChange={(e) => editarVariante(i, 'nombre', e.target.value)}
                   />
                   <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '8px', top: '7px', fontSize: '10px', color: '#999' }}>+</span>
+                    <span style={{ position: 'absolute', left: '8px', top: '7px', fontSize: '9px', color: '#999', fontWeight: '600' }}>Gs.</span>
                     <input
-                      style={{ width: '80px', padding: '6px 6px 6px 18px', border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
+                      style={{ width: '100px', padding: '6px 6px 6px 28px', border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
                         borderRadius: '6px', background: darkMode ? '#3a3a3a' : 'white',
                         color: darkMode ? 'white' : '#333', fontSize: '12px', outline: 'none' }}
-                      placeholder="0"
-                      value={v.precio_extra}
-                      onChange={(e) => editarVariante(i, 'precio_extra', e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="Precio total"
+                      value={v.precio}
+                      onChange={(e) => editarVariante(i, 'precio', e.target.value.replace(/[^0-9]/g, ''))}
                     />
                   </div>
                   <button

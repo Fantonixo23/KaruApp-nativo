@@ -118,21 +118,21 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
 
   const totalCarrito = useMemo(() => carrito.reduce((sum, item) => sum + item.precio_total, 0), [carrito])
 
+  const obtenerPrecioVariant = (producto, varianteNombre) => {
+    if (!varianteNombre || !producto.variantes) return null
+    const vs = Array.isArray(producto.variantes) ? producto.variantes : Object.values(producto.variantes)
+    const v = vs.find(v => (typeof v === 'string' ? v : v?.nombre) === varianteNombre)
+    if (v && typeof v === 'object') {
+      if (v.precio) return parseFloat(v.precio)
+      if (v.precio_extra) return parseFloat(v.precio_extra) + parseFloat(producto.precio)
+    }
+    return null
+  }
+
   const agregarAlCarrito = () => {
     if (!modalProducto) return
-    const precioBase = parseFloat(modalProducto.precio)
-    let precioExtra = 0
-    if (variante && modalProducto.variantes) {
-      if (Array.isArray(modalProducto.variantes)) {
-        const v = modalProducto.variantes.find(v => {
-          if (typeof v === 'string') return v === variante
-          if (typeof v === 'object') return v.nombre === variante
-          return false
-        })
-        if (v && typeof v === 'object' && v.precio_extra) precioExtra = parseFloat(v.precio_extra)
-      }
-    }
-    const precioUnitario = precioBase + precioExtra
+    const precioVariant = obtenerPrecioVariant(modalProducto, variante)
+    const precioUnitario = precioVariant !== null ? precioVariant : parseFloat(modalProducto.precio)
     setCarrito([...carrito, {
       producto_id: modalProducto.id,
       producto: modalProducto.nombre,
@@ -598,7 +598,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {(Array.isArray(modalProducto.variantes) ? modalProducto.variantes : Object.values(modalProducto.variantes)).map((v, i) => {
                       const vName = typeof v === 'string' ? v : v?.nombre || `Opción ${i + 1}`
-                      const vPrice = typeof v === 'object' && v?.precio_extra ? parseFloat(v.precio_extra) : 0
+                      const vPrecio = typeof v === 'object' ? (v?.precio ? parseFloat(v.precio) : v?.precio_extra ? parseFloat(v.precio_extra) + parseFloat(modalProducto.precio) : null) : null
                       const isSelected = variante === vName
                       return (
                         <button
@@ -611,7 +611,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
                             color: isSelected ? 'white' : darkMode ? '#ccc' : '#333',
                             fontWeight: isSelected ? '700' : '400',
                           }}
-                        >{vName}{vPrice > 0 ? ` +${formatGuarani(vPrice)}` : ''}</button>
+                        >{vName}{vPrecio !== null ? ` ${formatGuarani(vPrecio)}` : ''}</button>
                       )
                     })}
                   </div>
@@ -643,14 +643,7 @@ export default function TomarPedido({ mesa, onVolver, usuario, pedidoExistente, 
               />
 
               <button onClick={agregarAlCarrito} style={styles.btnOrange}>
-                🛒 Agregar al Carrito — {formatGuarani(
-                  (parseFloat(modalProducto.precio) + (() => {
-                    if (!variante || !modalProducto.variantes) return 0
-                    const v = (Array.isArray(modalProducto.variantes) ? modalProducto.variantes : Object.values(modalProducto.variantes))
-                      .find(v => (typeof v === 'string' ? v : v?.nombre) === variante)
-                    return (typeof v === 'object' && v?.precio_extra) ? parseFloat(v.precio_extra) : 0
-                  })()) * cantidad
-                )}
+                🛒 Agregar al Carrito — {formatGuarani((obtenerPrecioVariant(modalProducto, variante) ?? parseFloat(modalProducto.precio)) * cantidad)}
               </button>
             </div>
           </div>
