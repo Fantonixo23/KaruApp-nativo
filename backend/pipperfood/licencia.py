@@ -333,13 +333,17 @@ class VerificarLicenciaMiddleware:
         licencia = license_manager.verificar()
 
         if licencia['estado'] in ('bloqueada', 'expirado') or licencia.get('bloqueado'):
-            return JsonResponse({
-                'success': False,
-                'error': 'Licencia bloqueada',
-                'mensaje': licencia['mensaje'],
-                'bloqueada': True,
-                'estado': licencia['estado']
-            }, status=403)
+            if path.startswith('/api/'):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Licencia bloqueada',
+                    'mensaje': licencia['mensaje'],
+                    'bloqueada': True,
+                    'estado': licencia['estado']
+                }, status=403)
+            # Dejar pasar la SPA (index.html) para que el frontend muestre
+            # la pantalla de bloqueo (LicenseBanner). Solo se bloquea la API.
+            return self.get_response(request)
 
         return self.get_response(request)
 

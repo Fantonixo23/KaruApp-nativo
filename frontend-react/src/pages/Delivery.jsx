@@ -132,14 +132,21 @@ export default function Delivery() {
     }
   }
 
+  const obtenerPrecioVariant = (producto, varianteNombre) => {
+    if (!varianteNombre || !producto.variantes) return null
+    const vs = Array.isArray(producto.variantes) ? producto.variantes : Object.values(producto.variantes)
+    const v = vs.find(x => (typeof x === 'string' ? x : x?.nombre) === varianteNombre)
+    if (v && typeof v === 'object') {
+      if (v.precio) return parseFloat(v.precio)
+      if (v.precio_extra) return parseFloat(v.precio_extra) + parseFloat(producto.precio)
+    }
+    return null
+  }
+
   const agregarAlCarrito = (producto, { variante: varSel, nota: prodNota, cantidad: cant } = {}) => {
     const cantFinal = cant || 1
-    let precioExtra = 0
-    if (varSel && producto.variantes && Array.isArray(producto.variantes)) {
-      const v = producto.variantes.find(x => typeof x === 'string' ? x === varSel : x.nombre === varSel)
-      if (v && typeof v === 'object' && v.precio_extra) precioExtra = parseFloat(v.precio_extra)
-    }
-    const precioUnitario = parseFloat(producto.precio) + precioExtra
+    const precioVariant = obtenerPrecioVariant(producto, varSel)
+    const precioUnitario = precioVariant !== null ? precioVariant : parseFloat(producto.precio)
     const key = `${producto.id}_${varSel || ''}`
     const existente = carrito.find(p => `${p.producto_id}_${p.variante || ''}` === key)
     if (existente) {
@@ -789,7 +796,7 @@ export default function Delivery() {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                   {modalProducto.variantes.map((v, i) => {
                     const vName = typeof v === 'string' ? v : v?.nombre || 'Opci\u00f3n ' + (i + 1)
-                    const vPrice = typeof v === 'object' && v?.precio_extra ? parseFloat(v.precio_extra) : 0
+                    const vPrecio = typeof v === 'object' ? (v?.precio ? parseFloat(v.precio) : v?.precio_extra ? parseFloat(v.precio_extra) + parseFloat(modalProducto.precio) : null) : null
                     const isSelected = variante === vName
                     return (
                       <button
@@ -801,7 +808,7 @@ export default function Delivery() {
                           background: isSelected ? '#FF9800' : (darkMode ? '#2a2a2a' : '#f0f0f0'),
                           color: isSelected ? 'white' : (darkMode ? '#ccc' : '#333'),
                         }}
-                      >{vName}{vPrice > 0 ? ' +' + formatGuarani(vPrice) : ''}</button>
+                      >{vName}{vPrecio !== null ? ' +' + formatGuarani(vPrecio) : ''}</button>
                     )
                   })}
                 </div>

@@ -612,6 +612,12 @@ def reemplazar_items(request, pk):
         data = json.loads(request.body)
         nuevos_items = data.get('items', [])
         
+        # Datos del cliente (delivery)
+        nombre_cliente = data.get('nombre_cliente')
+        telefono_cliente = data.get('telefono_cliente')
+        direccion = data.get('direccion')
+        notas = data.get('notas')
+        
         if not nuevos_items:
             return JsonResponse({
                 'success': False,
@@ -675,6 +681,16 @@ def reemplazar_items(request, pk):
             # Reemplazar items y actualizar total
             pedido.items = items_validados
             pedido.total = total
+            
+            # Actualizar datos del cliente si vienen en el request
+            if nombre_cliente is not None:
+                pedido.nombre_cliente = nombre_cliente
+            if telefono_cliente is not None:
+                pedido.telefono_cliente = telefono_cliente
+            if direccion is not None:
+                pedido.direccion = direccion
+            if notas is not None:
+                pedido.notas = notas
             pedido.save()
         
         try:

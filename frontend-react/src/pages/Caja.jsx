@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore'
 
 import { formatGuarani } from '../utils/currency'
 import { TicketFactura } from '../components/Ticket'
-import { printTicketFactura } from '../utils/qzPrint'
+import { printTicketFactura, printCorteCaja } from '../utils/qzPrint'
 
 import { getApiUrl } from '../utils/api'
 const API_URL = getApiUrl()
@@ -78,6 +78,8 @@ export default function Caja() {
   const [pedidosMesa, setPedidosMesa] = useState([])
   const [cargando, setCargando] = useState(false)
   const [metodoPago, setMetodoPago] = useState('efectivo')
+  const [pagoMixto, setPagoMixto] = useState(false)
+  const [montosPorMetodo, setMontosPorMetodo] = useState({ efectivo: '', tarjeta: '', transferencia: '' })
   const [propina, setPropina] = useState(0)
   const [propinaCustom, setPropinaCustom] = useState('')
   const [modalCobrar, setModalCobrar] = useState(false)
@@ -205,6 +207,7 @@ export default function Caja() {
   const [obsCierre, setObsCierre] = useState('')
   const [resultadoCierre, setResultadoCierre] = useState(null)
   const [showCorteTicket, setShowCorteTicket] = useState(false)
+  const [imprimiendoCorte, setImprimiendoCorte] = useState(false)
 
   // Reimpresion
   const [modalReimpresion, setModalReimpresion] = useState(false)
@@ -347,11 +350,33 @@ export default function Caja() {
 
   const totalConPropina = calcularTotal() + calcularPropina()
 
+  // ====================== PAGO MIXTO (dividir) ======================
+  const montosMixto = ['efectivo', 'tarjeta', 'transferencia'].map(k => ({
+    metodo: k,
+    monto: parseFloat(montosPorMetodo[k]) || 0
+  }))
+  const sumaMixto = montosMixto.reduce((s, m) => s + m.monto, 0)
+  const metodosMixtoActivos = montosMixto.filter(m => m.monto > 0)
+  const esMixto = pagoMixto && metodosMixtoActivos.length >= 1
+  const faltanteMixto = esMixto ? (totalConPropina - sumaMixto) : 0
+  const diferenciaMixto = Math.abs(sumaMixto - totalConPropina)
+
+  const onMontoMetodoChange = (metodo) => (e) => {
+    const valor = e.target.value.replace(/[^0-9]/g, '')
+    setMontosPorMetodo(prev => ({ ...prev, [metodo]: valor }))
+  }
+
+  const limpiarPagoMixto = () => {
+    setMontosPorMetodo({ efectivo: '', tarjeta: '', transferencia: '' })
+  }
+
   // ====================== SELECCIONAR MESA Y COBRAR ======================
 
   const seleccionarMesa = async (mesa) => {
     setMesaSeleccionada(mesa)
     setMetodoPago('efectivo')
+    setPagoMixto(false)
+    setMontosPorMetodo({ efectivo: '', tarjeta: '', transferencia: '' })
     setPropina(0)
     setPropinaCustom('')
     setVuelto(0)
@@ -389,22 +414,32 @@ export default function Caja() {
   const procesarCobro = async () => {
     const esDelivery = !!deliveryPedidoSeleccionado
     if (cargando || (!mesaSeleccionada && !esDelivery)) return
-    if (metodoPago === 'efectivo' && (!montoRecibido || parseFloat(montoRecibido) < 1)) { alert('El monto recibido debe ser mayor a 0'); return }
-    if (metodoPago === 'transferencia' && !comprobanteNro) { alert('Ingrese el N° de comprobante de la transferencia'); return }
+    if (esMixto) {
+      if (metodosMixtoActivos.length < 1) { alert('Complete al menos un método de pago'); return }
+      if (diferenciaMixto > 10) { alert(`Los montos divididos deben sumar ${formatGuarani(totalConPropina)}. Faltan: ${formatGuarani(Math.max(0, faltanteMixto))}`); return }
+    } else if (metodoPago === 'efectivo' && (!montoRecibido || parseFloat(montoRecibido) < 1)) { alert('El monto recibido debe ser mayor a 0'); return }
+    else if (metodoPago === 'transferencia' && !comprobanteNro) { alert('Ingrese el N° de comprobante de la transferencia'); return }
 
     setCargando(true)
     const body = {
-      metodo_pago: metodoPago,
+      metodo_pago: esMixto ? 'mixto' : metodoPago,
       propina: calcularPropina(),
       tipo_iva: tipoIva,
       cliente_tipo: clienteDatos.tipo,
       cliente_ruc: clienteDatos.ruc || '44444444-7',
       cliente_nombre: clienteDatos.nombre || 'Consumidor Final',
       generar_factura: generarFactura,
-      monto_recibido: metodoPago === 'efectivo' ? parseFloat(montoRecibido) || 0 : 0,
+      monto_recibido: !esMixto && metodoPago === 'efectivo' ? parseFloat(montoRecibido) || 0 : 0,
       usuario_id: session?.usuario_id,
     }
-    if (metodoPago === 'transferencia') {
+    if (esMixto) {
+      body.pagos = metodosMixtoActivos.map(p => ({
+        metodo: p.metodo,
+        monto: p.monto,
+        moneda: 'PYG',
+        monto_pyg: p.monto
+      }))
+    } else if (metodoPago === 'transferencia') {
       body.comprobante_nro = comprobanteNro
     }
 
@@ -438,8 +473,8 @@ export default function Caja() {
         numero_orden: esDelivery ? (deliveryPedidoSeleccionado.numero_orden || deliveryPedidoSeleccionado.id) : (data.numero_factura || 1),
         fecha: new Date(), items: itemsCompletos,
         total: totalFinal,
-        detalle_pagos: data.detalle_pagos || [],
-        metodo_pago: metodoPago,
+        detalle_pagos: esMixto ? (body.pagos || []) : (data.detalle_pagos || []),
+        metodo_pago: esMixto ? 'mixto' : metodoPago,
         tipo_iva: tipoIva,
         propina: calcularPropina(),
         mesa: esDelivery ? 'Delivery' : mesaSeleccionada.numero, delivery: esDelivery, vuelto: data.vuelto || 0,
@@ -480,6 +515,13 @@ export default function Caja() {
     const monto = parseFloat(movMonto)
     if (!monto || monto <= 0) { alert('Ingrese un monto válido'); return }
     if (!movMotivo.trim()) { alert('Ingrese un motivo'); return }
+    if (movTipo === 'retiro') {
+      const disponible = efectivoEsperado
+      if (monto > disponible) {
+        alert(`No puede retirar más de lo que hay en la caja. Disponible: ${formatGuarani(disponible)}`)
+        return
+      }
+    }
     try {
       const res = await fetch(`${API_URL}/caja/movimiento`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -613,11 +655,15 @@ export default function Caja() {
         <Sidebar activePath="/app/caja" />
         <div style={st.content}>
         {/* TARJETAS RESUMEN */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
           <div style={{ ...st.card, borderLeft: '4px solid #4CAF50' }}>
             <p style={{ color: '#888', fontSize: '11px', margin: '0 0 4px' }}>EFECTIVO</p>
             <p style={{ color: darkMode ? '#81C784' : '#2E7D32', fontSize: '18px', fontWeight: '700', margin: 0 }}>{formatGuarani(sTotales.ventas_efectivo || 0)}</p>
             <p style={{ color: '#888', fontSize: '10px', margin: '2px 0 0' }}>En caja: {formatGuarani(efectivoEsperado)}</p>
+          </div>
+          <div style={{ ...st.card, borderLeft: '4px solid #9C27B0' }}>
+            <p style={{ color: '#888', fontSize: '11px', margin: '0 0 4px' }}>TARJETA DÉBITO/CRÉDITO</p>
+            <p style={{ color: '#CE93D8', fontSize: '18px', fontWeight: '700', margin: 0 }}>{formatGuarani(sTotales.ventas_tarjeta || 0)}</p>
           </div>
           <div style={{ ...st.card, borderLeft: '4px solid #2196F3' }}>
             <p style={{ color: '#888', fontSize: '11px', margin: '0 0 4px' }}>TRANSFERENCIA</p>
@@ -742,7 +788,7 @@ export default function Caja() {
                       setDeliveryPedidos(prev => prev.map(p => p.id === pedido.id ? { ...p, estado: 'entregado' } : p))
                     } catch (e) { console.error('Error:', e) }
                   }
-                  setDeliveryPedidoSeleccionado(pedido); setMesaSeleccionada(null); setPedidosMesa([pedido]); setModalCobrar(true); setMetodoPago('efectivo'); setPropina(0); setPropinaCustom(''); setVuelto(0); setMontoRecibido(''); setGenerarFactura(false); setClienteDatos({ nombre: pedido.cliente_nombre || '', ruc: pedido.cliente_ruc || '', tipo: pedido.cliente_ruc ? 'factura' : 'consumidor' }); setComprobanteNro('')
+                  setDeliveryPedidoSeleccionado(pedido); setMesaSeleccionada(null); setPedidosMesa([pedido]); setModalCobrar(true); setMetodoPago('efectivo'); setPagoMixto(false); setMontosPorMetodo({ efectivo: '', tarjeta: '', transferencia: '' }); setPropina(0); setPropinaCustom(''); setVuelto(0); setMontoRecibido(''); setGenerarFactura(false); setClienteDatos({ nombre: pedido.cliente_nombre || '', ruc: pedido.cliente_ruc || '', tipo: pedido.cliente_ruc ? 'factura' : 'consumidor' }); setComprobanteNro('')
                 }} style={{
                   animationDelay: `${i * 0.05}s`, cursor: 'pointer',
                   ...st.card, border: `2px solid ${pedido.estado === 'listo' ? '#4CAF50' : '#FF9800'}`, transition: 'transform 0.2s',
@@ -860,21 +906,63 @@ export default function Caja() {
               <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 8px' }}>Método de Pago</p>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {metodosApi.filter(m => m.activo).map(m => (
-                  <button key={m.nombre} onClick={() => { setMetodoPago(m.nombre); setComprobanteNro('') }}
+                  <button key={m.nombre} onClick={() => { setMetodoPago(m.nombre); setPagoMixto(false); setComprobanteNro('') }}
                     style={{
-                      padding: '10px 16px', border: metodoPago === m.nombre ? '2px solid ' + m.color : '2px solid transparent',
-                      borderRadius: '12px', background: metodoPago === m.nombre ? (darkMode ? '#3a3a3a' : '#fff') : (darkMode ? '#2a2a2a' : '#f5f5f5'),
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: metodoPago === m.nombre ? m.color : (darkMode ? '#ccc' : '#666'), fontWeight: metodoPago === m.nombre ? '700' : '400',
+                      padding: '10px 16px', border: metodoPago === m.nombre && !pagoMixto ? '2px solid ' + m.color : '2px solid transparent',
+                      borderRadius: '12px', background: metodoPago === m.nombre && !pagoMixto ? (darkMode ? '#3a3a3a' : '#fff') : (darkMode ? '#2a2a2a' : '#f5f5f5'),
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', color: metodoPago === m.nombre && !pagoMixto ? m.color : (darkMode ? '#ccc' : '#666'), fontWeight: metodoPago === m.nombre && !pagoMixto ? '700' : '400',
                     }}>
                     <span className="material-icons" style={{ fontSize: '20px' }}>{m.icono || 'payments'}</span>
                     <span style={{ fontSize: '13px' }}>{m.etiqueta}</span>
                   </button>
                 ))}
               </div>
+
+              {/* Pago Mixto / Dividir */}
+              {!deliveryPedidoSeleccionado && (
+              <div style={{ marginTop: '12px', padding: '12px', background: pagoMixto ? (darkMode ? '#3a3a3a' : '#fff7e6') : (darkMode ? '#2a2a2a' : '#f5f5f5'), borderRadius: '10px', border: pagoMixto ? '2px solid #FF9800' : '1px solid rgba(0,0,0,0.08)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: pagoMixto ? '12px' : 0 }}>
+                  <input type="checkbox" checked={pagoMixto} onChange={e => { setPagoMixto(e.target.checked); setMontosPorMetodo({ efectivo: '', tarjeta: '', transferencia: '' }) }} style={{ width: '18px', height: '18px' }} />
+                  <span style={{ color: darkMode ? '#ddd' : '#333', fontSize: '14px', fontWeight: '600' }}>Pago dividido (mixto)</span>
+                </label>
+
+                {pagoMixto && (
+                  <>
+                    {[
+                      { clave: 'efectivo', label: 'Efectivo', color: '#4CAF50', icono: 'payments' },
+                      { clave: 'tarjeta', label: 'Tarjeta (Débito/Crédito)', color: '#9C27B0', icono: 'credit_card' },
+                      { clave: 'transferencia', label: 'Transferencia', color: '#2196F3', icono: 'account_balance' },
+                    ].map(mm => (
+                      <div key={mm.clave} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <span className="material-icons" style={{ color: mm.color, fontSize: '20px' }}>{mm.icono}</span>
+                        <span style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', width: '170px' }}>{mm.label}</span>
+                        <input type="text" inputMode="decimal" placeholder="0" value={montosPorMetodo[mm.clave]}
+                          onChange={onMontoMetodoChange(mm.clave)}
+                          style={{ ...st.input, width: '130px', textAlign: 'center', fontWeight: '700', fontSize: '16px', padding: '9px' }} />
+                        <span style={{ color: darkMode ? '#aaa' : '#888', fontSize: '12px', minWidth: '90px' }}>
+                          = {formatGuarani(parseFloat(montosPorMetodo[mm.clave]) || 0)}
+                        </span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,152,0,0.3)', paddingTop: '8px' }}>
+                      <span style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600' }}>Total dividido</span>
+                      <span style={{ color: '#FF9800', fontSize: '15px', fontWeight: '700' }}>{formatGuarani(sumaMixto)}</span>
+                    </div>
+                    {metodosMixtoActivos.length >= 1 && (
+                      <p style={{ fontSize: '12px', fontWeight: '600', margin: '8px 0 0', color: diferenciaMixto <= 10 ? '#4CAF50' : '#E53935' }}>
+                        {diferenciaMixto <= 10
+                          ? '✓ Los montos suman el total correctamente'
+                          : `Faltan: ${formatGuarani(Math.max(0, faltanteMixto))} · Sobra: ${formatGuarani(Math.max(0, -faltanteMixto))}`}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              )}
             </div>
 
             {/* Monto Recibido + Vuelto (solo efectivo) */}
-            {metodoPago === 'efectivo' && (
+            {!pagoMixto && metodoPago === 'efectivo' && (
               <div style={{ marginBottom: '16px' }}>
                 <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 8px' }}>Monto Recibido</p>
                 <input type="text" inputMode="numeric" placeholder="Ingrese el monto recibido" value={formatearNumero(montoRecibido)}
@@ -897,7 +985,7 @@ export default function Caja() {
             )}
 
             {/* Datos de pago Transferencia */}
-            {metodoPago === 'transferencia' && (
+            {!pagoMixto && metodoPago === 'transferencia' && (
               <div style={{ marginBottom: '16px', padding: '12px', background: darkMode ? '#3a3a3a' : '#f5f5f5', borderRadius: '10px' }}>
                 <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 10px' }}>Datos de la transferencia</p>
                 <div>
@@ -968,8 +1056,8 @@ export default function Caja() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => { setModalCobrar(false); setMesaSeleccionada(null) }}
                 style={{ ...st.btn, background: darkMode ? '#3a3a3a' : '#f0f0f0', color: darkMode ? '#ccc' : '#555', flex: 1 }}>Cancelar</button>
-              <button onClick={() => setModalConfirmarCobro(true)} disabled={cargando || (metodoPago === 'efectivo' && (!montoRecibido || parseFloat(montoRecibido) < 1)) || (metodoPago === 'transferencia' && !comprobanteNro)}
-                style={{ ...st.btnPrimary, flex: 2, opacity: (cargando || (metodoPago === 'efectivo' && (!montoRecibido || parseFloat(montoRecibido) < 1)) || (metodoPago === 'transferencia' && !comprobanteNro)) ? 0.5 : 1 }}>
+              <button onClick={() => setModalConfirmarCobro(true)} disabled={cargando || (esMixto ? metodosMixtoActivos.length < 1 || diferenciaMixto > 10 : (metodoPago === 'efectivo' && (!montoRecibido || parseFloat(montoRecibido) < 1)) || (metodoPago === 'transferencia' && !comprobanteNro))}
+                style={{ ...st.btnPrimary, flex: 2, opacity: (cargando || (esMixto ? metodosMixtoActivos.length < 1 || diferenciaMixto > 10 : (metodoPago === 'efectivo' && (!montoRecibido || parseFloat(montoRecibido) < 1)) || (metodoPago === 'transferencia' && !comprobanteNro))) ? 0.5 : 1 }}>
                 {cargando ? 'PROCESANDO...' : `COBRAR ${formatGuarani(totalConPropina)}`}
               </button>
             </div>
@@ -985,9 +1073,20 @@ export default function Caja() {
             <div style={{ marginBottom: '16px' }}>
               <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '4px 0' }}>Mesa: {mesaSeleccionada?.numero}</p>
               <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '4px 0' }}>Total: <strong>{formatGuarani(totalConPropina)}</strong></p>
-              <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '4px 0' }}>Método: {metodosApi.find(m => m.nombre === metodoPago)?.etiqueta || metodoPago}</p>
-              {parseFloat(montoRecibido) > 0 && <p style={{ color: '#4CAF50', fontSize: '14px', margin: '4px 0' }}>Recibido: {formatGuarani(parseFloat(montoRecibido))}</p>}
-              {parseFloat(montoRecibido) > totalConPropina && (
+              {esMixto ? (
+                <div style={{ marginTop: '8px', padding: '10px', background: darkMode ? '#3a3a3a' : '#f5f5f5', borderRadius: '10px' }}>
+                  <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 6px' }}>Pago dividido:</p>
+                  {metodosMixtoActivos.map(m => (
+                    <p key={m.metodo} style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '2px 0' }}>
+                      {m.metodo === 'efectivo' ? 'Efectivo' : m.metodo === 'tarjeta' ? 'Tarjeta (Débito/Crédito)' : 'Transferencia'}: <strong>{formatGuarani(m.monto)}</strong>
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '4px 0' }}>Método: {metodosApi.find(m => m.nombre === metodoPago)?.etiqueta || metodoPago}</p>
+              )}
+              {!esMixto && parseFloat(montoRecibido) > 0 && <p style={{ color: '#4CAF50', fontSize: '14px', margin: '4px 0' }}>Recibido: {formatGuarani(parseFloat(montoRecibido))}</p>}
+              {!esMixto && parseFloat(montoRecibido) > totalConPropina && (
                 <p style={{ color: '#4CAF50', fontSize: '16px', fontWeight: '700', margin: '4px 0', textAlign: 'center' }}>
                   Vuelto a entregar: {formatGuarani(parseFloat(montoRecibido) - totalConPropina)}
                 </p>
@@ -1031,6 +1130,13 @@ export default function Caja() {
             <h3 style={{ color: darkMode ? '#fff' : '#333', margin: '0 0 16px' }}>
               {movTipo === 'ingreso_extra' ? '💰 Ingreso Extra' : '💸 Retiro de Efectivo'}
             </h3>
+            {movTipo === 'retiro' && (
+              <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '10px', background: darkMode ? '#3a3a3a' : '#fff8e1', border: '1px solid #FF9800' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: darkMode ? '#ddd' : '#555' }}>
+                  💵 Efectivo disponible en caja: <strong style={{ color: '#FF9800' }}>{formatGuarani(efectivoEsperado)}</strong>
+                </p>
+              </div>
+            )}
             <div style={{ marginBottom: '12px' }}>
               <label style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Monto (Gs.)</label>
               <input type="text" inputMode="numeric" placeholder="0" value={formatearNumero(movMonto)} onChange={handleMontoChange(setMovMonto)}
@@ -1110,6 +1216,7 @@ export default function Caja() {
             <div style={{ marginBottom: '10px', color: '#000', fontWeight: 'bold' }}>
               <p style={{ fontSize: '12px', fontWeight: 'bold', margin: '0 0 6px', color: '#000' }}>VENTAS</p>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold' }}><span>Efectivo:</span><span>{formatGuarani(resultadoCierre.total_ventas_efectivo)}</span></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold' }}><span>Tarjeta (Débito/Crédito):</span><span>{formatGuarani(resultadoCierre.total_ventas_tarjeta)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold' }}><span>Transferencia:</span><span>{formatGuarani(resultadoCierre.total_ventas_transferencia)}</span></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', borderTop: '1px solid #ccc', paddingTop: '3px', marginTop: '3px', color: '#000' }}><span>Total Ventas:</span><span>{formatGuarani(resultadoCierre.total_ventas)}</span></div>
             </div>
@@ -1129,16 +1236,39 @@ export default function Caja() {
               </div>
             </div>
             {resultadoCierre.observaciones && <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#000', textAlign: 'center', margin: '0 0 12px' }}>Obs: {resultadoCierre.observaciones}</p>}
-            <button
-              onClick={() => { setShowCorteTicket(false); setSession(null); setShowApertura(true) }}
-              style={{
-                width: '100%', padding: '14px', border: 'none', borderRadius: '12px',
-                background: 'linear-gradient(135deg, #FF9800, #F57C00)',
-                color: 'white', fontWeight: '700', fontSize: '15px', cursor: 'pointer'
-              }}
-            >
-              Aceptar
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={async () => {
+                  setImprimiendoCorte(true)
+                  try {
+                    await printCorteCaja(resultadoCierre, empresa, session?.usuario)
+                  } catch (err) {
+                    console.error('Error imprimiendo corte:', err)
+                    alert(err.message || 'Error al imprimir el corte de caja')
+                  } finally {
+                    setImprimiendoCorte(false)
+                  }
+                }}
+                style={{
+                  flex: 1, padding: '14px', border: 'none', borderRadius: '12px',
+                  background: darkMode ? '#3a3a3a' : '#f0f0f0',
+                  color: darkMode ? '#ccc' : '#555', fontWeight: '700', fontSize: '15px',
+                  cursor: 'pointer', opacity: imprimiendoCorte ? 0.6 : 1
+                }}
+              >
+                {imprimiendoCorte ? 'Imprimiendo...' : '🖨️ Imprimir'}
+              </button>
+              <button
+                onClick={() => { setShowCorteTicket(false); setSession(null); setShowApertura(true) }}
+                style={{
+                  flex: 2, padding: '14px', border: 'none', borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #FF9800, #F57C00)',
+                  color: 'white', fontWeight: '700', fontSize: '15px', cursor: 'pointer'
+                }}
+              >
+                Aceptar
+              </button>
+            </div>
           </div>
         </div>
       )}

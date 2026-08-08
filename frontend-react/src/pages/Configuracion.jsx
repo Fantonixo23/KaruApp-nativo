@@ -6,6 +6,7 @@ import { formatGuarani } from '../utils/currency'
 import { getApiUrl } from '../utils/api'
 
 const API_URL = getApiUrl()
+const DEFAULT_PRINT_SERVER = `http://${window.location.hostname || 'localhost'}:5123`
 const DEPARTAMENTOS = {
   '1': { nombre: 'Capital', ciudades: { '1': 'ASUNCION (DISTRITO)' } },
   '2': { nombre: 'Concepción', ciudades: { '1': 'CONCEPCION', '2': 'HORQUETA', '3': 'LORETO', '4': 'YBY YAU' } },
@@ -65,9 +66,9 @@ export default function Configuracion() {
   const logoInputRef = useRef(null)
   const [printerName, setPrinterName] = useState(() => localStorage.getItem('pipper_printer_name') || localStorage.getItem('qz_printer_name') || '')
   const [paperSize, setPaperSize] = useState(() => localStorage.getItem('pipper_paper_size') || '58mm')
-  const [printServerCaja, setPrintServerCaja] = useState(() => localStorage.getItem('pipper_print_server_caja') || 'http://localhost:5123')
+  const [printServerCaja, setPrintServerCaja] = useState(() => localStorage.getItem('pipper_print_server_caja') || DEFAULT_PRINT_SERVER)
   const [printerCaja, setPrinterCaja] = useState(() => localStorage.getItem('pipper_printer_caja') || '')
-  const [printServerCocina, setPrintServerCocina] = useState(() => localStorage.getItem('pipper_print_server_cocina') || 'http://localhost:5123')
+  const [printServerCocina, setPrintServerCocina] = useState(() => localStorage.getItem('pipper_print_server_cocina') || DEFAULT_PRINT_SERVER)
   const [printerCocina, setPrinterCocina] = useState(() => localStorage.getItem('pipper_printer_cocina') || '')
 
   const [sifenHabilitado, setSifenHabilitado] = useState(false)

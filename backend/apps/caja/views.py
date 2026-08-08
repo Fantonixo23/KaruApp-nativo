@@ -131,6 +131,14 @@ def movimiento(request):
         if monto <= 0:
             return JsonResponse({'success': False, 'error': 'El monto debe ser mayor a 0'}, status=400)
 
+        if tipo == 'retiro':
+            disponible = session.efectivo_esperado()
+            if monto > disponible:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'No puede retirar más de lo que hay en la caja. Disponible: {int(disponible):,} Gs'
+                }, status=400)
+
         motivo = data.get('motivo', '')
         if not motivo:
             return JsonResponse({'success': False, 'error': 'Debe ingresar un motivo'}, status=400)

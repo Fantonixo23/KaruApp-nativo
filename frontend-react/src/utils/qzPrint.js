@@ -2,11 +2,15 @@ const API_URL = window.location.origin + '/api'
 
 let _tokenCache = null
 
+function _defaultPrintServer() {
+  return 'http://' + (window.location.hostname || 'localhost') + ':5123'
+}
+
 function _getPrintServer(tipo) {
   if (tipo === 'cocina') {
-    return localStorage.getItem('pipper_print_server_cocina') || 'http://localhost:5123'
+    return localStorage.getItem('pipper_print_server_cocina') || _defaultPrintServer()
   }
-  return localStorage.getItem('pipper_print_server_caja') || 'http://localhost:5123'
+  return localStorage.getItem('pipper_print_server_caja') || _defaultPrintServer()
 }
 
 function _getPrinterName(tipo) {
@@ -432,6 +436,58 @@ export async function printComanda(pedido) {
 
 export async function printDeliveryTicket(pedido, empresa) {
   const data = buildDeliveryTicket(pedido, empresa)
+  const printerName = _getPrinterName('caja')
+  const serverUrl = _getPrintServer('caja')
+  await _sendRaw(data, printerName, serverUrl)
+}
+
+function buildCorteCaja(corte, empresa, cajero) {
+  const width = _getWidth()
+  let data = ''
+
+  data += CMD.INIT
+  data += _center(CMD.DOUBLE_ON + _sanitize(empresa?.nombre || 'RESTAURANTE') + CMD.DOUBLE_OFF)
+  if (empresa?.ruc) data += _center('RUC: ' + _sanitize(empresa.ruc))
+  data += _boldCenter('CORTE DE CAJA')
+  data += _center(_formatDate(corte?.created_at))
+  data += _divider()
+
+  data += _row('Cajero:', _sanitize(cajero || 'Sin asignar'))
+  data += _row('Fondo Inicial:', _formatGuarani(corte?.fondo_inicial))
+  data += _divider()
+
+  data += _bold('VENTAS')
+  data += _row('Efectivo:', _formatGuarani(corte?.total_ventas_efectivo))
+  data += _row('Tarjeta:', _formatGuarani(corte?.total_ventas_tarjeta))
+  data += _row('Transferencia:', _formatGuarani(corte?.total_ventas_transferencia))
+  data += _row('Total Ventas:', _formatGuarani(corte?.total_ventas))
+  data += CMD.LF
+  data += _row('+ Ingresos:', _formatGuarani(corte?.total_ingresos_extra))
+  data += _row('- Retiros:', _formatGuarani(corte?.total_retiros))
+  data += _row('Propinas:', _formatGuarani(corte?.total_propinas))
+  data += _divider()
+
+  data += _row('ESPERADO:', _formatGuarani(corte?.total_esperado))
+  data += _row('CONTADO:', _formatGuarani(corte?.total_contado_efectivo))
+  const tipo = corte?.tipo_diferencia
+  const etiqueta = tipo === 'sobrante' ? 'SOBRANTE' : tipo === 'faltante' ? 'FALTANTE' : 'DIFERENCIA'
+  const signo = Number(corte?.diferencia) > 0 ? '+' : ''
+  data += _bold(_row(etiqueta + ':', signo + _formatGuarani(corte?.diferencia)))
+
+  if (corte?.observaciones) {
+    data += CMD.LF
+    data += _left('OBS: ' + _sanitize(corte.observaciones))
+  }
+
+  data += _spacer(2)
+  data += CMD.CUT_FULL
+  data += CMD.DRAWER
+
+  return data
+}
+
+export async function printCorteCaja(corte, empresa, cajero) {
+  const data = buildCorteCaja(corte, empresa, cajero)
   const printerName = _getPrinterName('caja')
   const serverUrl = _getPrintServer('caja')
   await _sendRaw(data, printerName, serverUrl)
