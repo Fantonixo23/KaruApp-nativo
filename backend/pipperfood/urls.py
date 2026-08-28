@@ -14,7 +14,6 @@ urlpatterns = [
     path('api/', include('apps.informes.urls')),
     path('api/', include('apps.inventario.urls')),
     path('api/', include('apps.caja.urls')),
-    path('api/', include('apps.sifen.urls')),
     path('api/', include('pipperfood.api_urls')),
 ]
 

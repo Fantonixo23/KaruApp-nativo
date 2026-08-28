@@ -1105,7 +1105,6 @@ def cobrar_mesa(request, mesa_id):
             if generar_factura:
                 try:
                     from apps.facturacion.models import Configuracion, Timbrado, Factura
-                    from apps.facturacion.sifen import generar_factura_completa
 
                     config = Configuracion.objects.first()
                     if not config:
@@ -1119,55 +1118,23 @@ def cobrar_mesa(request, mesa_id):
                     else:
                         num_factura = '0000001'
 
-                    cliente_data = {
-                        'ruc': cliente_ruc,
-                        'nombre': cliente_nombre,
-                        'direccion': data.get('cliente_direccion', ''),
-                    }
-
-                    all_items = []
-                    total_final = 0
-                    for p in pedidos:
-                        all_items.extend(p.items if isinstance(p.items, list) else [])
-                        total_final += float(p.total)
-
-                    pedido_dict = {
-                        'numero_orden': num_factura,
-                        'items': all_items,
-                        'total': total_final,
-                    }
-
-                    sifen_result = generar_factura_completa(config, pedido_dict, cliente_data)
-
                     first_pedido = pedidos.first() if pedidos.exists() else None
 
-                    sr = sifen_result.get('sifen_result', {})
-                    sifen_envio_ok = sr.get('success', False)
-                    sifen_estado_val = 'enviada' if sifen_envio_ok else 'pendiente'
-                    sifen_mensaje_val = sr.get('response') or sr.get('error', '')
+                    total_final = 0
+                    for p in pedidos:
+                        total_final += float(p.total)
 
                     factura = Factura.objects.create(
                         numero=num_factura,
                         pedido=first_pedido,
                         ruc_cliente=cliente_ruc,
                         nombre_cliente=cliente_nombre,
-                        xml=sifen_result['xml'],
-                        cdc=sifen_result['cdc'],
-                        kude=sifen_result['kude'],
-                        qr_base64=sifen_result['qr_base64'],
                         estado='generada',
-                        sifen_estado=sifen_estado_val,
-                        sifen_mensaje=sifen_mensaje_val,
                         total=total_final,
                     )
 
                     factura_data = {
                         'numero': factura.numero,
-                        'cdc': factura.cdc,
-                        'kude': factura.kude,
-                        'qr_base64': factura.qr_base64,
-                        'sifen_estado': factura.sifen_estado,
-                        'sifen_mensaje': factura.sifen_mensaje,
                     }
                 except Exception as factura_err:
                     if timbrado:
@@ -1176,7 +1143,7 @@ def cobrar_mesa(request, mesa_id):
                     factura_data = {
                         'error': str(factura_err),
                     }
-                    logger.warning(f'SIFEN error al facturar pedidos de mesa {mesa_id}: {factura_err}')
+                    logger.warning(f'Error al generar factura para mesa {mesa_id}: {factura_err}')
         
             sifen_error = None
             if isinstance(factura_data, dict) and 'error' in factura_data:
@@ -1323,10 +1290,6 @@ def lista_pedidos_pagados(request):
             if factura:
                 item['factura'] = {
                     'numero': factura.numero,
-                    'cdc': factura.cdc,
-                    'kude': factura.kude,
-                    'qr_base64': factura.qr_base64,
-                    'sifen_estado': factura.sifen_estado,
                 }
             data.append(item)
 

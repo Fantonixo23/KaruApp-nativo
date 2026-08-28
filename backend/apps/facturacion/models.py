@@ -21,44 +21,12 @@ class Configuracion(models.Model):
     )
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_vencimiento = models.DateField(null=True, blank=True)
-    # SIFEN fields
-    ambiente_sifen = models.CharField(
-        max_length=20,
-        choices=[('test', 'Pruebas'), ('produccion', 'Producción')],
-        default='test'
-    )
-    certificado_pkcs12 = models.FileField(
-        upload_to='certificados/', blank=True, null=True,
-        help_text='Certificado digital .p12 para firma de facturas electrónicas'
-    )
-    csc = models.CharField(
-        max_length=100, blank=True, null=True,
-        help_text='Código de Seguridad del Contribuyente (CSC) para SIFEN'
-    )
-    csc_pin = models.CharField(
-        max_length=20, blank=True, null=True,
-        help_text='PIN del CSC'
-    )
-    csc_id = models.IntegerField(default=1, help_text='ID del CSC (1 o 2) - identifica cuál CSC está activo')
-    cDepEmi = models.CharField(max_length=10, default='1', help_text='Código de departamento (SIFEN)')
-    cCiuEmi = models.CharField(max_length=10, default='1', help_text='Código de ciudad/distrito')
-    dDesDepEmi = models.CharField(max_length=100, default='CAPITAL', help_text='Descripción del departamento')
-    dDesCiuEmi = models.CharField(max_length=100, default='ASUNCION (DISTRITO)', help_text='Descripción de la ciudad/distrito')
-    cDirEmi = models.TextField(blank=True, default='', help_text='Dirección fiscal del emisor (para SIFEN)')
-    dNumCas = models.IntegerField(default=0, help_text='Número de casa del emisor')
-    dEmailE = models.EmailField(blank=True, default='', help_text='Email del emisor')
-    gActEco_codigo = models.CharField(max_length=10, default='47111', help_text='Código de actividad económica (SIFEN)')
-    gActEco_descripcion = models.CharField(
-        max_length=255, default='Venta al por menor en comercios no especializados',
-        help_text='Descripción de la actividad económica'
-    )
     tamano_papel = models.CharField(
         max_length=4,
         choices=[('58mm', '58mm'), ('80mm', '80mm')],
         default='58mm',
         help_text='Tamaño de papel para impresión térmica'
     )
-    sifen_habilitado = models.BooleanField(default=False, help_text='Habilitar facturación electrónica SIFEN')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -101,24 +69,6 @@ class Factura(models.Model):
     )
     ruc_cliente = models.CharField(max_length=20)
     nombre_cliente = models.CharField(max_length=255)
-    xml = models.TextField(blank=True, default='')
-    cdc = models.CharField(max_length=32, blank=True, default='', verbose_name='Código de Control')
-    kude = models.TextField(blank=True, default='', verbose_name='KUDE para QR')
-    qr_base64 = models.TextField(blank=True, default='', verbose_name='QR en base64')
-    sifen_estado = models.CharField(
-        max_length=20,
-        choices=[
-            ('pendiente', 'Pendiente'),
-            ('enviada', 'Enviada a SIFEN'),
-            ('aprobada', 'Aprobada por SIFEN'),
-            ('rechazada', 'Rechazada por SIFEN'),
-            ('anulada', 'Anulada'),
-        ],
-        default='pendiente',
-        verbose_name='Estado SIFEN'
-    )
-    sifen_mensaje = models.TextField(blank=True, default='', verbose_name='Mensaje SIFEN')
-    protocolo = models.TextField(blank=True, default='', verbose_name='Protocolo SIFEN')
     estado = models.CharField(
         max_length=20,
         choices=[
@@ -138,7 +88,7 @@ class Factura(models.Model):
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"Factura {self.numero} ({self.cdc[:16]}...)"
+        return f"Factura {self.numero}"
 
 
 class MetodoPago(models.Model):

@@ -178,16 +178,12 @@ class PrintHandler(BaseHTTPRequestHandler):
         pedido = body.get('pedido', {})
         negocio = body.get('negocio', {})
         cliente = body.get('cliente', {})
-        factura = body.get('factura') or {}
         detalle_pagos = body.get('detalle_pagos', pedido.get('detalle_pagos', []))
-        qr_base64 = body.get('qr_base64') or factura.get('qr_base64', '') or pedido.get('qr_base64', '')
-        pedido['cdc'] = factura.get('cdc', '') or pedido.get('cdc', '')
-        pedido['kude'] = factura.get('kude', '') or pedido.get('kude', '')
         pedido['detalle_pagos'] = detalle_pagos
         pedido['vuelto'] = body.get('vuelto', pedido.get('vuelto', 0))
         pedido['propina'] = body.get('propina', pedido.get('propina', 0))
         pedido['monto_recibido'] = body.get('monto_recibido', pedido.get('monto_recibido', 0))
-        escpos = build_factura(pedido, negocio, cliente, size, qr_base64, paper_width)
+        escpos = build_factura(pedido, negocio, cliente, size, paper_width)
         self._print_with_retry(printer, escpos)
         self._json({'success': True, 'impresora': printer, 'tamano': size, 'paper_size': paper_width})
 

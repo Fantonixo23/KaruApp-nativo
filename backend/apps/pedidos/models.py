@@ -14,8 +14,20 @@ ESTADOS_PEDIDO = [
     ('cancelado', 'Cancelado'),
 ]
 
+TRANSICIONES_VALIDAS = {
+    'pendiente': {'cocinando', 'cancelado'},
+    'cocinando': {'pendiente', 'listo', 'cancelado'},
+    'listo': {'entregado', 'en_camino', 'cancelado'},
+    'en_camino': {'entregado', 'cancelado'},
+    'entregado': {'pagado'},
+    'pagado': set(),
+    'cancelado': set(),
+}
+
 def transicion_valida(estado_actual, nuevo_estado):
-    return True
+    if estado_actual not in TRANSICIONES_VALIDAS:
+        return False
+    return nuevo_estado in TRANSICIONES_VALIDAS[estado_actual]
 
 
 class Pedido(models.Model):

@@ -6,6 +6,7 @@ import TomarPedido from '../components/TomarPedido'
 import { useStore } from '../store/useStore'
 import { useSocketStore, useRealTime } from '../store/useSocketStore'
 import { formatGuarani } from '../utils/currency'
+import { printCuenta } from '../utils/qzPrint'
 
 import { getApiUrl } from '../utils/api'
 const API_URL = getApiUrl()
@@ -141,8 +142,13 @@ export default function NuevaVenta() {
     }
   }
 
-  const handlePrintBluetooth = () => {
-    window.print()
+  const handlePrintBluetooth = async () => {
+    try {
+      await printCuenta(pedidosMesa, mesaSeleccionada, empresa)
+    } catch (e) {
+      console.error('Error imprimiendo por ESC/POS:', e)
+      window.print()
+    }
   }
 
   const seleccionarMesa = (mesa) => {

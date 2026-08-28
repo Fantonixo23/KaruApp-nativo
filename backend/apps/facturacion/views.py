@@ -43,22 +43,6 @@ def get_config(request):
             'fecha_inicio': config.fecha_inicio.isoformat() if config.fecha_inicio else None,
             'fecha_vencimiento': config.fecha_vencimiento.isoformat() if config.fecha_vencimiento else None,
             'tamano_papel': config.tamano_papel or '58mm',
-            # SIFEN fields
-            'sifen_habilitado': config.sifen_habilitado,
-            'ambiente_sifen': config.ambiente_sifen or 'test',
-            'certificado_configurado': bool(config.certificado_pkcs12),
-            'certificado_nombre': config.certificado_pkcs12.name.split('/')[-1] if config.certificado_pkcs12 else None,
-            'csc_configurado': bool(config.csc),
-            'csc_id': config.csc_id,
-            'cDepEmi': config.cDepEmi,
-            'cCiuEmi': config.cCiuEmi,
-            'dDesDepEmi': config.dDesDepEmi,
-            'dDesCiuEmi': config.dDesCiuEmi,
-            'cDirEmi': config.cDirEmi,
-            'dNumCas': config.dNumCas,
-            'dEmailE': config.dEmailE,
-            'gActEco_codigo': config.gActEco_codigo,
-            'gActEco_descripcion': config.gActEco_descripcion,
         }
     })
 
@@ -87,21 +71,6 @@ def update_config(request):
             config.establecimiento = data.get('establecimiento', config.establecimiento)
             config.punto_expedicion = data.get('punto_expedicion', config.punto_expedicion)
             config.tamano_papel = data.get('tamano_papel', config.tamano_papel)
-            # SIFEN fields
-            config.sifen_habilitado = data.get('sifen_habilitado', config.sifen_habilitado)
-            config.ambiente_sifen = data.get('ambiente_sifen', config.ambiente_sifen)
-            config.csc = data.get('csc', config.csc)
-            config.csc_pin = data.get('csc_pin', config.csc_pin)
-            config.csc_id = data.get('csc_id', config.csc_id)
-            config.cDepEmi = data.get('cDepEmi', config.cDepEmi)
-            config.cCiuEmi = data.get('cCiuEmi', config.cCiuEmi)
-            config.dDesDepEmi = data.get('dDesDepEmi', config.dDesDepEmi)
-            config.dDesCiuEmi = data.get('dDesCiuEmi', config.dDesCiuEmi)
-            config.cDirEmi = data.get('cDirEmi', config.cDirEmi)
-            config.dNumCas = data.get('dNumCas', config.dNumCas)
-            config.dEmailE = data.get('dEmailE', config.dEmailE)
-            config.gActEco_codigo = data.get('gActEco_codigo', config.gActEco_codigo)
-            config.gActEco_descripcion = data.get('gActEco_descripcion', config.gActEco_descripcion)
             config.save()
         
         return JsonResponse({
@@ -114,11 +83,6 @@ def update_config(request):
                 'timbrado_numero': config.timbrado_numero,
                 'establecimiento': config.establecimiento,
                 'punto_expedicion': config.punto_expedicion,
-                'sifen_habilitado': config.sifen_habilitado,
-                'ambiente_sifen': config.ambiente_sifen,
-                'csc_configurado': bool(config.csc),
-                'csc_id': config.csc_id,
-                'certificado_configurado': bool(config.certificado_pkcs12),
             }
         })
     except Exception as e:
@@ -176,7 +140,7 @@ def crear_timbrado(request):
 @require_http_methods(["POST"])
 @requiere_autenticacion
 def generar_factura(request):
-    """Genera factura electrÃ³nica con SIFEN (sandbox)"""
+    """Genera una factura numerada por timbrado"""
     try:
         data = json.loads(request.body)
         pedido_id = data.get('pedido_id')
@@ -193,7 +157,7 @@ def generar_factura(request):
         from apps.pedidos.models import Pedido
         pedido = Pedido.objects.get(pk=pedido_id)
 
-        # Consumir nÃºmero secuencial del timbrado (se revertirÃ¡ si falla)
+        # Consumir número secuencial del timbrado (se revertirá si falla)
         timbrado = Timbrado.objects.filter(activo=True).first()
         if not timbrado:
             numero = str(1).zfill(7)
@@ -203,36 +167,13 @@ def generar_factura(request):
             numero = str(timbrado.numero_actual).zfill(7)
 
         try:
-            # Preparar datos del cliente
-            cliente_data = {
-                "ruc": ruc_cliente,
-                "nombre": nombre_cliente,
-                "direccion": data.get('cliente_direccion', ''),
-                "telefono": data.get('cliente_telefono', ''),
-            }
-
-            # Usar SIFEN para generar factura completa
-            from .sifen import generar_factura_completa
-
-            pedido_dict = {
-                "numero_orden": numero,
-                "items": pedido.items or [],
-                "total": float(pedido.total),
-            }
-
-            sifen_result = generar_factura_completa(config, pedido_dict, cliente_data)
-
             factura = Factura.objects.create(
                 numero=numero,
                 pedido=pedido,
                 ruc_cliente=ruc_cliente,
                 nombre_cliente=nombre_cliente,
-                xml=sifen_result["xml"],
-                cdc=sifen_result["cdc"],
-                kude=sifen_result["kude"],
-                qr_base64=sifen_result["qr_base64"],
                 estado='generada',
-                total=sifen_result["total"],
+                total=pedido.total,
             )
         except Exception:
             if timbrado:
@@ -244,12 +185,7 @@ def generar_factura(request):
             'success': True,
             'factura': {
                 'numero': factura.numero,
-                'cdc': factura.cdc,
-                'kude': factura.kude,
-                'qr_base64': factura.qr_base64,
-                'xml': factura.xml,
                 'total': str(factura.total),
-                'sifen_result': sifen_result["sifen_result"],
             }
         })
     except Pedido.DoesNotExist:

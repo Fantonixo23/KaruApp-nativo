@@ -314,15 +314,12 @@ def calcular_iva(items):
             iva10 += total_item * 0.10
     return subtotal, iva10, iva5
 
-def build_factura(pedido, negocio=None, cliente=None, size='normal', qr_base64=None, paper_width='80mm'):
+def build_factura(pedido, negocio=None, cliente=None, size='normal', paper_width='80mm'):
     chars = get_chars_per_line(size, paper_width)
     font = get_font_for_size(size, paper_width)
     lines = []
     lines.append(init())
 
-    cdc = pedido.get('cdc', '') or ''
-    kude = pedido.get('kude', '') or ''
-    es_fiscal = bool(cdc)
     use_font_b = font == 'B'
     p9 = 9
     desc_max = chars - 5 - 10 - 2
@@ -345,18 +342,11 @@ def build_factura(pedido, negocio=None, cliente=None, size='normal', qr_base64=N
     # ===== TITLE =====
     lines.append(center())
     lines.append(bold_on())
-    lines.append(b'DOCUMENTO TRIBUTARIO\n' if es_fiscal else b'TICKET DE CAJA\n')
+    lines.append(b'TICKET DE CAJA\n')
     lines.append(bold_off())
 
-    if es_fiscal:
-        timbrado = (negocio or {}).get('timbrado_numero') or (negocio or {}).get('timbrado', '-')
-        lines.append(('Timbrado Nro: ' + str(timbrado) + '\n').encode('cp1252', errors='replace'))
-
     num = str(pedido.get('numero_factura') or pedido.get('numero_orden', '1'))
-    if es_fiscal:
-        lines.append(('FACTURA Nro: ' + num.zfill(7) + '\n').encode('cp1252', errors='replace'))
-    else:
-        lines.append(('Nro: ' + num.zfill(4) + '\n').encode('cp1252', errors='replace'))
+    lines.append(('Nro: ' + num.zfill(4) + '\n').encode('cp1252', errors='replace'))
 
     fecha = pedido.get('fecha', '')
     if not fecha:
@@ -446,44 +436,7 @@ def build_factura(pedido, negocio=None, cliente=None, size='normal', qr_base64=N
 
     lines.append(separator('-', chars))
 
-    # ===== CDC + KUDE =====
-    if cdc:
-        lines.append(center())
-        lines.append(bold_on())
-        lines.append(b'CDC:\n')
-        lines.append(bold_off())
-        lines.append(font_b())
-        lines.append((cdc + '\n').encode('cp1252', errors='replace'))
-        if kude:
-            lines.append(b'KUDE:\n')
-            lines.append((kude + '\n').encode('cp1252', errors='replace'))
-        lines.append(font_a())
-        lines.append(left())
-        lines.append(separator('-', chars))
-
-    # ===== QR =====
-    if qr_base64:
-        qr_data = bitmap_to_escpos(qr_base64, max_width=chars * 5)
-        if qr_data:
-            lines.append(center())
-            lines.append(qr_data)
-            lines.append(left())
-            lines.append(b'\n')
-            lines.append(center())
-            lines.append(b'Escanee el QR para verificar\n')
-            lines.append(left())
-
     # ===== FOOTER =====
-    if es_fiscal:
-        lines.append(center())
-        lines.append(bold_on())
-        lines.append(b'Documento Electronico\n')
-        lines.append(bold_off())
-        lines.append(b'SIFEN - SET Paraguay\n')
-        lines.append(b'Consulte en: www.set.gov.py\n')
-        lines.append(b'Este comprobante puede ser verificado\n')
-        lines.append(b'utilizando el visor de la SET\n')
-
     lines.append(bold_on())
     lines.append(b'Gracias por su preferencia!\n')
     lines.append(bold_off())

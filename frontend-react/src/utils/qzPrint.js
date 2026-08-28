@@ -351,6 +351,99 @@ function buildComanda(pedido) {
   return data
 }
 
+function buildCuenta(pedidos, mesa, empresa) {
+  const items = []
+  ;(pedidos || []).forEach(p => {
+    ;(p?.items || []).forEach(item => items.push(item))
+  })
+
+  const grupos = {}
+  items.forEach(item => {
+    const key = (item.producto_nombre || item.producto || '') + '|' + (item.variante || '')
+    if (grupos[key]) {
+      grupos[key].cantidad += item.cantidad
+      if (item.nota && grupos[key].notas.indexOf(item.nota) === -1) {
+        grupos[key].notas.push(item.nota)
+      }
+    } else {
+      grupos[key] = {
+        cantidad: item.cantidad,
+        nombre: item.producto_nombre || item.producto,
+        precio: parseFloat(item.precio) || 0,
+        variante: item.variante,
+        notas: item.nota ? [item.nota] : [],
+      }
+    }
+  })
+
+  let subtotal = 0
+  let iva5 = 0
+  let iva10 = 0
+  Object.values(grupos).forEach(g => {
+    const total = g.cantidad * g.precio
+    subtotal += total
+    const tipoIva = g.iva || 10
+    if (tipoIva === 5) iva5 += total * 0.05
+    else iva10 += total * 0.10
+  })
+
+  const meseroNombre = pedidos?.[0]?.mesero_nombre || ''
+  const created = pedidos?.[0]?.created_at || ''
+  const mesaNumero = mesa?.numero || mesa
+
+  const width = _getWidth()
+  let data = ''
+
+  data += CMD.INIT
+  data += _center(CMD.DOUBLE_ON + _sanitize(empresa?.nombre || 'RESTAURANTE') + CMD.DOUBLE_OFF)
+  if (empresa?.ruc) data += _center('RUC: ' + _sanitize(empresa.ruc))
+  if (empresa?.direccion) data += _center(_sanitize(empresa.direccion))
+  if (empresa?.telefono) data += _center('Tel: ' + _sanitize(empresa.telefono))
+  data += _divider()
+
+  data += _boldCenter('*** C U E N T A ***')
+  if (mesaNumero) data += _center('Mesa: ' + mesaNumero)
+  if (meseroNombre) data += _center('Mozo: ' + _sanitize(meseroNombre))
+  data += _center('Fecha: ' + _formatDate(created))
+  data += _divider()
+
+  if (Object.keys(grupos).length > 0) {
+    const colQty = 5
+    const colTotal = 10
+    const colDesc = width - colQty - colTotal
+    data += _left('Cant'.padEnd(colQty) + 'Descripcion'.padEnd(colDesc) + 'Total'.padStart(colTotal))
+    data += _divider('-')
+
+    Object.values(grupos).forEach(g => {
+      const nombre = _sanitize(g.nombre)
+      const cantStr = String(g.cantidad) + 'x'
+      const totalStr = _formatGuarani(g.cantidad * g.precio)
+      const descMax = colDesc - 2
+      const nombreTrunc = nombre.length > descMax ? nombre.slice(0, descMax - 1) + '\u2026' : nombre
+      data += _left(cantStr.padEnd(colQty) + nombreTrunc.padEnd(colDesc) + totalStr.padStart(colTotal))
+      if (g.variante) data += _left(' '.repeat(colQty) + '+ ' + _sanitize(g.variante))
+      g.notas.forEach(n => {
+        data += _left(' '.repeat(colQty) + '>> ' + _sanitize(n))
+      })
+    })
+    data += _divider()
+  }
+
+  data += _row('Subtotal:', _formatGuarani(subtotal))
+  if (iva10 > 0) data += _row('IVA 10%:', _formatGuarani(iva10))
+  if (iva5 > 0) data += _row('IVA 5%:', _formatGuarani(iva5))
+  data += _divider()
+  data += CMD.LEFT + CMD.BOLD_ON + 'TOTAL Gs:'.padEnd(width - 10) + _formatGuarani(subtotal + iva10 + iva5) + CMD.BOLD_OFF + CMD.LF
+
+  data += _spacer(1)
+  data += _center('Gracias por su preferencia!')
+  data += _spacer(2)
+  data += CMD.CUT_FULL
+  data += CMD.DRAWER
+
+  return data
+}
+
 function buildDeliveryTicket(pedido, empresa) {
   const items = pedido?.items || []
   const total = Number(pedido?.total || 0)
@@ -422,6 +515,13 @@ export async function listPrinters(serverUrl) {
 
 export async function printTicketFactura(pedido, negocio, cliente, numero) {
   const data = buildTicketFactura(pedido, negocio, cliente, numero)
+  const printerName = _getPrinterName('caja')
+  const serverUrl = _getPrintServer('caja')
+  await _sendRaw(data, printerName, serverUrl)
+}
+
+export async function printCuenta(pedidos, mesa, empresa) {
+  const data = buildCuenta(pedidos, mesa, empresa)
   const printerName = _getPrinterName('caja')
   const serverUrl = _getPrintServer('caja')
   await _sendRaw(data, printerName, serverUrl)

@@ -26,11 +26,6 @@ export default function Inventario() {
   const [cantidadMovimiento, setCantidadMovimiento] = useState('')
   const [motivoMovimiento, setMotivoMovimiento] = useState('')
 
-  const [modalNuevo, setModalNuevo] = useState(false)
-  const [nuevoForm, setNuevoForm] = useState({
-    nombre: '', stock: '0', stock_minimo: '5', precio_costo: '0', unidad_medida: 'und',
-  })
-
   const [modalEditar, setModalEditar] = useState(false)
   const [editarForm, setEditarForm] = useState({
     id: null, producto_id: null, stock_minimo: '5', precio_costo: '0', unidad_medida: 'und',
@@ -164,46 +159,6 @@ export default function Inventario() {
     setEliminando(false)
   }
 
-  const crearNuevoItem = async () => {
-    if (!nuevoForm.nombre) return
-    try {
-      const res = await fetch(`${API_URL}/productos/crear`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: nuevoForm.nombre,
-          precio: 0,
-          disponible: true,
-        })
-      })
-      const data = await res.json()
-      if (data.success) {
-        const prodId = data.producto.id
-        const res2 = await fetch(`${API_URL}/inventario/actualizar`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            producto_id: prodId,
-            stock_actual: parseInt(nuevoForm.stock || '0'),
-            stock_minimo: parseInt(nuevoForm.stock_minimo || '5'),
-            precio_costo: parseInt(nuevoForm.precio_costo || '0'),
-            unidad_medida: nuevoForm.unidad_medida || 'und',
-          })
-        })
-        const data2 = await res2.json()
-        if (data2.success) {
-          setModalNuevo(false)
-          setNuevoForm({ nombre: '', stock: '0', stock_minimo: '5', precio_costo: '0', unidad_medida: 'und' })
-          cargarDatos()
-        }
-      } else {
-        alert(data.error)
-      }
-    } catch (e) {
-      alert('Error de conexión')
-    }
-  }
-
   const getEstadoStock = (estado) => {
     const estilos = {
       normal: { color: '#4CAF50', bg: 'rgba(76, 175, 80, 0.15)', texto: 'Normal' },
@@ -239,15 +194,6 @@ export default function Inventario() {
       color: dm ? 'white' : '#1a1a1a', marginBottom: '10px',
       boxSizing: 'border-box', outline: 'none',
     }),
-    fab: {
-      position: 'fixed', bottom: '24px', right: '24px',
-      width: '48px', height: '48px', border: 'none', borderRadius: '14px',
-      background: 'linear-gradient(135deg, #4CAF50, #388E3C)',
-      color: 'white', fontSize: '22px', cursor: 'pointer',
-      boxShadow: '0 4px 12px rgba(76,175,80,0.3)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 50,
-    },
   }
 
   return (
@@ -331,16 +277,8 @@ export default function Inventario() {
           </div>
 
           {/* TABLA DE INVENTARIO */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <div style={{ marginBottom: '15px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, color: darkMode ? '#fff' : '#333' }}>📋 Inventario de Productos</h2>
-            <button
-              onClick={() => setModalNuevo(true)}
-              style={{
-                padding: '10px 18px', border: 'none', borderRadius: '10px',
-                background: 'linear-gradient(135deg, #9C27B0, #7B1FA2)',
-                color: 'white', fontWeight: '700', cursor: 'pointer', fontSize: '13px',
-              }}
-            >+ Nuevo Item</button>
           </div>
 
           <div style={{ background: darkMode ? '#333' : '#fff', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
@@ -440,9 +378,6 @@ export default function Inventario() {
         </div>
       </div>
 
-      {/* FAB - Nuevo Item */}
-      <button style={{ ...s.fab, bottom: isMobile ? '70px' : '24px' }} onClick={() => setModalNuevo(true)}>+</button>
-
       {/* MODAL MOVIMIENTO (entrada/salida) */}
       {modalMovimiento && (
         <div style={s.overlay}>
@@ -505,72 +440,6 @@ export default function Inventario() {
               >
                 {tipoMovimiento === 'entrada' ? '➕ Entrada' : '➖ Salida'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL NUEVO ITEM (crea producto + inventario) */}
-      {modalNuevo && (
-        <div style={s.overlay} onClick={() => setModalNuevo(false)}>
-          <div style={s.modalCard(darkMode)} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ color: darkMode ? '#fff' : '#333', marginBottom: '20px', textAlign: 'center' }}>➕ Nuevo Item de Inventario</h3>
-
-            <label style={{ display: 'block', marginBottom: '4px', color: darkMode ? '#aaa' : '#666', fontSize: '13px' }}>Nombre del producto</label>
-            <input
-              style={s.input(darkMode)}
-              placeholder="Ej: Hamburguesa, Coca Cola..."
-              value={nuevoForm.nombre}
-              onChange={(e) => setNuevoForm({ ...nuevoForm, nombre: e.target.value })}
-            />
-            <label style={{ display: 'block', marginBottom: '4px', color: darkMode ? '#aaa' : '#666', fontSize: '13px' }}>Stock inicial — cantidad que tenés ahora</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                style={{ ...s.input(darkMode), flex: 1 }}
-                type="number" placeholder="0"
-                value={nuevoForm.stock}
-                onChange={(e) => setNuevoForm({ ...nuevoForm, stock: e.target.value })}
-              />
-              <input
-                style={{ ...s.input(darkMode), flex: 1 }}
-                type="number" placeholder="5"
-                value={nuevoForm.stock_minimo}
-                onChange={(e) => setNuevoForm({ ...nuevoForm, stock_minimo: e.target.value })}
-              />
-            </div>
-            <label style={{ display: 'block', marginBottom: '4px', color: darkMode ? '#aaa' : '#666', fontSize: '13px' }}>Stock mínimo — cuando llegue a este número, te alertará</label>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                style={{ ...s.input(darkMode), flex: 1 }}
-                type="number" placeholder="0"
-                value={nuevoForm.precio_costo}
-                onChange={(e) => setNuevoForm({ ...nuevoForm, precio_costo: e.target.value })}
-              />
-              <input
-                style={{ ...s.input(darkMode), flex: 1 }}
-                placeholder="und"
-                value={nuevoForm.unidad_medida}
-                onChange={(e) => setNuevoForm({ ...nuevoForm, unidad_medida: e.target.value })}
-              />
-            </div>
-            <label style={{ display: 'block', marginBottom: '4px', color: darkMode ? '#aaa' : '#666', fontSize: '13px' }}>Precio costo = precio que pagaste por unidad (en Gs.)</label>
-            <label style={{ display: 'block', marginBottom: '10px', color: darkMode ? '#aaa' : '#666', fontSize: '13px' }}>Unidad de medida: und = unidades, kg = kilos, lts = litros</label>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button
-                onClick={() => setModalNuevo(false)}
-                style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', background: '#ccc', color: '#333', cursor: 'pointer' }}
-              >Cancelar</button>
-              <button
-                onClick={crearNuevoItem}
-                disabled={!nuevoForm.nombre}
-                style={{
-                  flex: 1, padding: '12px', border: 'none', borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #9C27B0, #7B1FA2)',
-                  color: 'white', cursor: nuevoForm.nombre ? 'pointer' : 'not-allowed',
-                  fontWeight: '700', opacity: nuevoForm.nombre ? 1 : 0.5,
-                }}
-              >✅ Crear</button>
             </div>
           </div>
         </div>
