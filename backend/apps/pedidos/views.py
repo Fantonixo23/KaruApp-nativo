@@ -1103,8 +1103,10 @@ def cobrar_mesa(request, mesa_id):
             factura_data = None
         
             if generar_factura:
+                timbrado = None
                 try:
                     from apps.facturacion.models import Configuracion, Timbrado, Factura
+                    from apps.facturacion.services.emision import emitir_para_factura
 
                     config = Configuracion.objects.first()
                     if not config:
@@ -1129,13 +1131,21 @@ def cobrar_mesa(request, mesa_id):
                         pedido=first_pedido,
                         ruc_cliente=cliente_ruc,
                         nombre_cliente=cliente_nombre,
-                        estado='generada',
+                        estado='pendiente_envio',
                         total=total_final,
+                        establecimiento=config.establecimiento,
+                        punto_expedicion=config.punto_expedicion,
                     )
+
+                    factura = emitir_para_factura(factura, pedidos, cfg=config, timbrado=timbrado)
 
                     factura_data = {
                         'numero': factura.numero,
+                        'cdc': factura.cdc,
+                        'estado': factura.estado,
                     }
+                    if factura.estado == 'rechazada':
+                        factura_data['error'] = factura.observacion_sifen
                 except Exception as factura_err:
                     if timbrado:
                         timbrado.numero_actual -= 1

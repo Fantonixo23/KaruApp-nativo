@@ -94,6 +94,47 @@ for /f "delims=" %%i in ('python -c "import secrets, string; print(secrets.token
 
 echo [OK] Configuracion guardada.
 
+:: --- 4b. Instalar sifen-service (facturación electrónica SIFEN) ---
+echo.
+echo [4b] Configurando sifen-service...
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [INFO] Node.js no detectado. El sifen-service requiere Node.js.
+    echo         Descargalo desde https://nodejs.org/ (version LTS)
+    echo         y vuelve a ejecutar este instalador.
+    echo         Sin el sifen-service la facturacion electronica no funcionara.
+) else (
+    for /f "delims=" %%v in ('node --version') do set NODE_VERSION=%%v
+    echo [OK] Node.js detectado (!NODE_VERSION!)
+    if not exist "sifen-service\server.js" (
+        echo [ERROR] No se encontro la carpeta sifen-service.
+        echo         Asegurate de copiar la carpeta completa del proyecto.
+        pause
+        exit /b 1
+    )
+    if not exist "sifen-service\node_modules" (
+        echo [INFO] Instalando dependencias del sifen-service...
+        pushd sifen-service
+        call npm install
+        if %errorlevel% neq 0 (
+            popd
+            echo [ERROR] Fallo la instalacion de dependencias del sifen-service.
+            pause
+            exit /b 1
+        )
+        popd
+        echo [OK] Dependencias del sifen-service instaladas.
+    ) else (
+        echo [OK] Dependencias del sifen-service ya instaladas.
+    )
+    if not exist "sifen-service\.env" (
+        copy "sifen-service\.env.example" "sifen-service\.env" >nul
+        echo [OK] Archivo .env del sifen-service creado (modo MOCK por defecto).
+    ) else (
+        echo [OK] Archivo .env del sifen-service ya existe.
+    )
+)
+
 :: --- 5. Migrar y crear usuarios ---
 echo.
 echo [5/7] Ejecutando migraciones...
@@ -155,7 +196,7 @@ echo.
 echo  Sistema:  karuAPP POS
 echo  Cliente:  %NOMBRE%
 echo.
-echo  Para iniciar los servidores:
+echo  Para iniciar los servidores (Django, Print y SIFEN):
 echo    - Con ventanas:   iniciar.bat
 echo    - Sin ventanas:   iniciar-silencioso.vbs
 echo.

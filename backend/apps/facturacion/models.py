@@ -27,6 +27,23 @@ class Configuracion(models.Model):
         default='58mm',
         help_text='Tamaño de papel para impresión térmica'
     )
+    # --- SIFEN ---
+    nombre_fantasia = models.CharField(max_length=255, blank=True)
+    tipo_contribuyente = models.PositiveSmallIntegerField(default=2)
+    tipo_regimen = models.PositiveSmallIntegerField(default=8)
+    actividades_economicas = models.JSONField(default=list, blank=True)
+    departamento = models.PositiveSmallIntegerField(default=11)
+    departamento_descripcion = models.CharField(max_length=100, default='ALTO PARANA')
+    distrito = models.PositiveSmallIntegerField(null=True, blank=True)
+    distrito_descripcion = models.CharField(max_length=100, blank=True)
+    ciudad = models.PositiveSmallIntegerField(null=True, blank=True)
+    ciudad_descripcion = models.CharField(max_length=100, blank=True)
+    ambiente_sifen = models.CharField(
+        max_length=4, choices=[('test', 'Test'), ('prod', 'Producción')], default='test'
+    )
+    ruta_certificado = models.CharField(max_length=500, blank=True)
+    csc = models.CharField(max_length=64, blank=True)
+    csc_id = models.CharField(max_length=4, default='1')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -73,12 +90,22 @@ class Factura(models.Model):
         max_length=20,
         choices=[
             ('borrador', 'Borrador'),
+            ('pendiente_envio', 'Pendiente de envío'),
+            ('en_espera', 'En espera de resultado SET'),
             ('generada', 'Generada'),
+            ('rechazada', 'Rechazada'),
             ('anulada', 'Anulada')
         ],
         default='borrador'
     )
     total = models.DecimalField(max_digits=10, decimal_places=0)
+    # --- SIFEN ---
+    cdc = models.CharField(max_length=44, blank=True)
+    id_lote = models.CharField(max_length=32, blank=True)
+    xml_firmado = models.TextField(blank=True)
+    observacion_sifen = models.TextField(blank=True)
+    establecimiento = models.CharField(max_length=3, blank=True)
+    punto_expedicion = models.CharField(max_length=3, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

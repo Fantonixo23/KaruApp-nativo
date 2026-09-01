@@ -1,13 +1,19 @@
 import json
+import logging
 import urllib.request
 import urllib.parse
 from datetime import datetime
+from pathlib import Path
+from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from apps.usuarios.decorators import requiere_autenticacion, requiere_rol
 from .models import Configuracion, Timbrado, Factura, MetodoPago
 from apps.pedidos.models import Pedido
+from .services import sifen_client
+
+logger = logging.getLogger(__name__)
 
 
 @require_http_methods(["GET"])
@@ -43,6 +49,22 @@ def get_config(request):
             'fecha_inicio': config.fecha_inicio.isoformat() if config.fecha_inicio else None,
             'fecha_vencimiento': config.fecha_vencimiento.isoformat() if config.fecha_vencimiento else None,
             'tamano_papel': config.tamano_papel or '58mm',
+            # --- SIFEN ---
+            'nombre_fantasia': config.nombre_fantasia or '',
+            'tipo_contribuyente': config.tipo_contribuyente,
+            'tipo_regimen': config.tipo_regimen,
+            'actividades_economicas': config.actividades_economicas or [],
+            'departamento': config.departamento,
+            'departamento_descripcion': config.departamento_descripcion or '',
+            'distrito': config.distrito,
+            'distrito_descripcion': config.distrito_descripcion or '',
+            'ciudad': config.ciudad,
+            'ciudad_descripcion': config.ciudad_descripcion or '',
+            'ambiente_sifen': config.ambiente_sifen or 'test',
+            'certificado_nombre': (config.ruta_certificado.rsplit('\\', 1)[-1].rsplit('/', 1)[-1]
+                                   if config.ruta_certificado else ''),
+            'csc_configurado': bool(config.csc),
+            'csc_id': config.csc_id or '1',
         }
     })
 
@@ -71,8 +93,43 @@ def update_config(request):
             config.establecimiento = data.get('establecimiento', config.establecimiento)
             config.punto_expedicion = data.get('punto_expedicion', config.punto_expedicion)
             config.tamano_papel = data.get('tamano_papel', config.tamano_papel)
+            # --- SIFEN ---
+            config.nombre_fantasia = data.get('nombre_fantasia', config.nombre_fantasia)
+            if data.get('tipo_contribuyente') is not None:
+                config.tipo_contribuyente = data.get('tipo_contribuyente')
+            if data.get('tipo_regimen') is not None:
+                config.tipo_regimen = data.get('tipo_regimen')
+            if 'actividades_economicas' in data:
+                config.actividades_economicas = data.get('actividades_economicas') or []
+            if data.get('departamento') is not None:
+                config.departamento = data.get('departamento')
+                config.departamento_descripcion = data.get('departamento_descripcion', config.departamento_descripcion)
+                config.distrito = data.get('distrito')
+                config.distrito_descripcion = data.get('distrito_descripcion', config.distrito_descripcion)
+                config.ciudad = data.get('ciudad')
+                config.ciudad_descripcion = data.get('ciudad_descripcion', config.ciudad_descripcion)
+            if data.get('ambiente_sifen') in ('test', 'prod'):
+                config.ambiente_sifen = data.get('ambiente_sifen')
+            if data.get('csc'):
+                config.csc = data.get('csc')
+            if data.get('csc_id'):
+                config.csc_id = str(data.get('csc_id'))
+            if data.get('fecha_inicio'):
+                from datetime import datetime as _dt
+                try:
+                    config.fecha_inicio = _dt.strptime(str(data.get('fecha_inicio'))[:10], '%Y-%m-%d').date()
+                except ValueError:
+                    pass
             config.save()
-        
+
+        # Reflejar en el .env del microservicio lo que cambia la configuración
+        # (ambiente y CSC se usan al firmar / generar el QR en sifen-service).
+        sifen_client.actualizar_config_sifen(
+            ambiente=data.get('ambiente_sifen') if data.get('ambiente_sifen') in ('test', 'prod') else None,
+            csc=data.get('csc') or None,
+            cscId=data.get('csc_id') or None,
+        )
+
         return JsonResponse({
             'success': True,
             'config': {
@@ -83,6 +140,13 @@ def update_config(request):
                 'timbrado_numero': config.timbrado_numero,
                 'establecimiento': config.establecimiento,
                 'punto_expedicion': config.punto_expedicion,
+                'tipo_contribuyente': config.tipo_contribuyente,
+                'tipo_regimen': config.tipo_regimen,
+                'ambiente_sifen': config.ambiente_sifen,
+                'fecha_inicio': config.fecha_inicio.isoformat() if config.fecha_inicio else None,
+                'csc_configurado': bool(config.csc),
+                'certificado_nombre': (config.ruta_certificado.rsplit('\\', 1)[-1].rsplit('/', 1)[-1]
+                                       if config.ruta_certificado else ''),
             }
         })
     except Exception as e:
@@ -154,7 +218,6 @@ def generar_factura(request):
                 'error': 'Configure la empresa primero'
             }, status=400)
         
-        from apps.pedidos.models import Pedido
         pedido = Pedido.objects.get(pk=pedido_id)
 
         # Consumir número secuencial del timbrado (se revertirá si falla)
@@ -361,3 +424,94 @@ def buscar_cliente_ruc(request):
         return JsonResponse({'success': False, 'error': f'Error del servicio RUC ({e.code})'}, status=502)
     except Exception as e:
         return JsonResponse({'success': False, 'error': 'Error al consultar RUC. Verifique su conexión a internet.'}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@requiere_autenticacion
+def sifen_status(request):
+    """Devuelve el estado de la facturación electrónica SIFEN.
+
+    - sifen_disponible: si el microservicio sifen-service responde.
+    - certificado_configurado / csc_configurado: desde el .env del microservicio
+      (que es lo que realmente se usa al firmar), combinado con Configuracion.
+    - ambiente: el ambiente real activo en el microservicio.
+    """
+    try:
+        config = Configuracion.objects.first()
+
+        estado_ms = sifen_client.obtener_config_sifen()
+        sifen_disponible = estado_ms is not None
+        if estado_ms:
+            cert_configurado = bool(estado_ms.get('certConfigurado'))
+            csc_configurado = bool(estado_ms.get('cscConfigurado'))
+            ambiente = estado_ms.get('ambiente', 'desconocido')
+        else:
+            cert_configurado = bool(config and config.ruta_certificado)
+            csc_configurado = bool(config and config.csc)
+            ambiente = getattr(config, 'ambiente_sifen', 'test') if config else 'test'
+
+        return JsonResponse({
+            'success': True,
+            'sifen_habilitado': bool(config and config.estado in ('activo', 'demo', 'test')),
+            'sifen_disponible': sifen_disponible,
+            'certificado_configurado': cert_configurado,
+            'csc_configurado': csc_configurado,
+            'ambiente': ambiente,
+            'empresa': config.nombre_empresa if config else None,
+        })
+    except Exception as e:
+        logger.exception('Error en sifen_status')
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT", "POST"])
+@requiere_autenticacion
+def sifen_certificado_subir(request):
+    """Guarda el certificado .p12 subido por el usuario, actualiza
+    Configuracion.ruta_certificado y escribe CERT_PATH/CERT_PASSWORD/CSC
+    en el .env del microservicio (que es lo que se usa al firmar)."""
+    try:
+        config = Configuracion.objects.first()
+        if not config:
+            config = Configuracion.objects.create(
+                nombre_empresa='Mi Restaurant', ruc='44444444-7',
+                establecimiento='001', punto_expedicion='001',
+            )
+
+        certificado = request.FILES.get('certificado')
+        pin = request.POST.get('pin', '')
+        csc = request.POST.get('csc', '')
+
+        ruta = config.ruta_certificado or ''
+        if certificado:
+            cert_dir = Path(settings.MEDIA_ROOT) / 'certificados'
+            cert_dir.mkdir(parents=True, exist_ok=True)
+            nombre = f'certificado_{config.id or 1}.p12'
+            ruta = str(cert_dir / nombre)
+            with open(ruta, 'wb+') as dest:
+                for chunk in certificado.chunks():
+                    dest.write(chunk)
+
+        config.ruta_certificado = ruta
+        if csc:
+            config.csc = csc
+        config.save()
+
+        # Reflejar en el microservicio lo que realmente se usa al firmar.
+        sifen_client.actualizar_config_sifen(
+            certPath=ruta or None,
+            certPassword=pin or None,
+            csc=csc or None,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'ruta_certificado': config.ruta_certificado,
+            'certificado_configurado': bool(ruta),
+            'csc_configurado': bool(config.csc),
+        })
+    except Exception as e:
+        logger.exception('Error en sifen_certificado_subir')
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

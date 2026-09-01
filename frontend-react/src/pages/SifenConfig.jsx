@@ -56,15 +56,24 @@ export default function SifenConfig() {
   const [csc, setCsc] = useState('')
   const [cscPin, setCscPin] = useState('')
   const [cscId, setCscId] = useState(1)
-  const [cDepEmi, setCDepEmi] = useState('1')
+  const [cDepEmi, setCDepEmi] = useState('11')
   const [cCiuEmi, setCCiuEmi] = useState('1')
-  const [dDesDepEmi, setDDesDepEmi] = useState('CAPITAL')
-  const [dDesCiuEmi, setDDesCiuEmi] = useState('ASUNCION (DISTRITO)')
+  const [cDistrito, setCDistrito] = useState('')
+  const [dDesDepEmi, setDDesDepEmi] = useState('ALTO PARANA')
+  const [dDesDistrito, setDDesDistrito] = useState('')
+  const [dDesCiuEmi, setDDesCiuEmi] = useState('CIUDAD DEL ESTE')
   const [cDirEmi, setCDirEmi] = useState('')
   const [dNumCas, setDNumCas] = useState(0)
   const [dEmailE, setDEmailE] = useState('')
   const [gActEco, setGActEco] = useState('56100')
   const [gActEcoDesc, setGActEcoDesc] = useState('Servicio de comidas y bebidas (Restaurante, pizzería, bar)')
+  const [nombreEmpresa, setNombreEmpresa] = useState('')
+  const [ruc, setRuc] = useState('')
+  const [nombreFantasia, setNombreFantasia] = useState('')
+  const [tipoContribuyente, setTipoContribuyente] = useState(2)
+  const [tipoRegimen, setTipoRegimen] = useState(8)
+  const [timbradoNumero, setTimbradoNumero] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
 
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
@@ -88,15 +97,25 @@ export default function SifenConfig() {
         setCertNombre(c.certificado_nombre || null)
         c.csc_configurado && setCsc('••••••••')
         setCscId(c.csc_id || 1)
-        setCDepEmi(c.cDepEmi || '1')
-        setCCiuEmi(c.cCiuEmi || '1')
-        setDDesDepEmi(c.dDesDepEmi || 'CAPITAL')
-        setDDesCiuEmi(c.dDesCiuEmi || 'ASUNCION (DISTRITO)')
-        setCDirEmi(c.cDirEmi || '')
-        setDNumCas(c.dNumCas || 0)
-        setDEmailE(c.dEmailE || '')
-        setGActEco(c.gActEco_codigo || '56100')
-        setGActEcoDesc(c.gActEco_descripcion || '')
+        setNombreEmpresa(c.nombre_empresa || '')
+        setRuc(c.ruc || '')
+        setNombreFantasia(c.nombre_fantasia || '')
+        setTipoContribuyente(c.tipo_contribuyente || 2)
+        setTipoRegimen(c.tipo_regimen || 8)
+        setTimbradoNumero(c.timbrado_numero || '')
+        setFechaInicio(c.fecha_inicio || '')
+        setCDepEmi(String(c.departamento || '1'))
+        setCCiuEmi(String(c.ciudad || '1'))
+        setCDistrito(String(c.distrito || ''))
+        setDDesDepEmi(c.departamento_descripcion || 'CAPITAL')
+        setDDesDistrito(c.distrito_descripcion || '')
+        setDDesCiuEmi(c.ciudad_descripcion || 'ASUNCION (DISTRITO)')
+        setCDirEmi(c.direccion || '')
+        if (Array.isArray(c.actividades_economicas) && c.actividades_economicas.length > 0) {
+          const act = c.actividades_economicas[0]
+          setGActEco(act.codigo || '56100')
+          setGActEcoDesc(act.descripcion || '')
+        }
       }
     } catch {}
   }
@@ -117,7 +136,9 @@ export default function SifenConfig() {
       const ciudadKeys = Object.keys(dep.ciudades)
       const firstCity = ciudadKeys[0]
       setCCiuEmi(firstCity)
+      setCDistrito(firstCity)
       setDDesCiuEmi(dep.ciudades[firstCity])
+      setDDesDistrito(dep.ciudades[firstCity])
     }
   }
 
@@ -127,6 +148,8 @@ export default function SifenConfig() {
     if (dep && dep.ciudades[ciuCodigo]) {
       setDDesCiuEmi(dep.ciudades[ciuCodigo])
     }
+    setCDistrito(ciuCodigo)
+    setDDesDistrito(ciuCodigo ? (dep && dep.ciudades[ciuCodigo] ? dep.ciudades[ciuCodigo] : '') : '')
   }
 
   const handleActividadChange = (codigo) => {
@@ -143,20 +166,23 @@ export default function SifenConfig() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sifen_habilitado: habilitado,
+          nombre_empresa: nombreEmpresa,
+          nombre_fantasia: nombreFantasia,
           ambiente_sifen: ambiente,
-          csc,
-          csc_pin: cscPin,
+          csc: csc === '••••••••' ? undefined : csc,
           csc_id: cscId,
-          cDepEmi,
-          cCiuEmi,
-          dDesDepEmi,
-          dDesCiuEmi,
-          cDirEmi,
-          dNumCas,
-          dEmailE,
-          gActEco_codigo: gActEco,
-          gActEco_descripcion: gActEcoDesc,
+          tipo_contribuyente: Number(tipoContribuyente),
+          tipo_regimen: Number(tipoRegimen),
+          timbrado_numero: timbradoNumero,
+          fecha_inicio: fechaInicio,
+          departamento: Number(cDepEmi),
+          departamento_descripcion: dDesDepEmi,
+          distrito: cDistrito ? Number(cDistrito) : Number(cCiuEmi),
+          distrito_descripcion: dDesDistrito || dDesCiuEmi,
+          ciudad: Number(cCiuEmi),
+          ciudad_descripcion: dDesCiuEmi,
+          direccion: cDirEmi,
+          actividades_economicas: [{ codigo: gActEco, descripcion: gActEcoDesc }],
         })
       })
       const data = await res.json()
@@ -186,7 +212,7 @@ export default function SifenConfig() {
       if (csc) formData.append('csc', csc)
 
       const res = await fetch(`${API_URL}/sifen/certificado/subir`, {
-        method: 'PUT',
+        method: 'POST',
         body: formData,
       })
       const data = await res.json()
@@ -213,17 +239,23 @@ export default function SifenConfig() {
       const data = await res.json()
       if (data.success) {
         const issues = []
-        if (!data.sifen_habilitado) issues.push('SIFEN no está habilitado')
-        if (!data.certificado_configurado) issues.push('Falta certificado digital')
-        if (!data.csc_configurado) issues.push('Falta CSC')
-        if (!data.sifen_disponible) issues.push('Librería sifen no instalada')
+        if (!data.certificado_configurado) issues.push('Falta certificado digital (.p12)')
+        if (!csc || csc === '••••••••' || !data.csc_configurado) issues.push('Falta CSC')
+        if (!data.sifen_disponible) issues.push('sifen-service no responde (verificar-sifen.bat)')
+        if (!nombreEmpresa) issues.push('Falta razón social / nombre de la empresa')
+        if (!ruc) issues.push('Falta RUC')
+        if (!tipoContribuyente) issues.push('Falta tipo de contribuyente')
+        if (!tipoRegimen) issues.push('Falta tipo de régimen')
+        if (!timbradoNumero) issues.push('Falta N° de timbrado (8 dígitos)')
+        if (!fechaInicio) issues.push('Falta fecha de inicio del timbrado')
+        if (!cDepEmi || !cCiuEmi) issues.push('Falta departamento / ciudad del emisor')
 
         if (issues.length > 0) {
           setTestResult({ success: false, message: 'Problemas detectados:\n• ' + issues.join('\n• ') })
         } else {
           setTestResult({
             success: true,
-            message: `Todo configurado correctamente.\nAmbiente: ${data.ambiente === 'test' ? '🧪 Pruebas' : '🚀 Producción'}\nEmpresa: ${data.empresa || '—'}`
+            message: `Todo configurado correctamente.\nAmbiente: ${ambiente === 'test' ? '🧪 Pruebas' : '🚀 Producción'}\nEmpresa: ${nombreEmpresa || '—'}`
           })
         }
       } else {
@@ -367,6 +399,104 @@ export default function SifenConfig() {
                       Las facturas en ambiente de pruebas NO tienen validez fiscal.
                     </p>
                   )}
+                </div>
+
+                {/* DATOS DEL CONTRIBUYENTE */}
+                <div style={{ ...s.card(darkMode) }} className="anim">
+                  <h2 style={s.cardTitle(darkMode)}>Datos del Contribuyente</h2>
+                  <p style={s.subtitle(darkMode)}>Razón social, RUC y actividad del facturador electrónico</p>
+
+                  <div style={s.field}>
+                    <label style={s.label(darkMode)}>Razón Social (Nombre de la Empresa)</label>
+                    <input
+                      type="text"
+                      value={nombreEmpresa}
+                      onChange={(e) => setNombreEmpresa(e.target.value)}
+                      placeholder="Restaurante Ejemplo S.A."
+                      className="sf-input"
+                    />
+                  </div>
+
+                  <div style={s.field}>
+                    <label style={s.label(darkMode)}>RUC</label>
+                    <input
+                      type="text"
+                      value={ruc}
+                      onChange={(e) => setRuc(e.target.value)}
+                      placeholder="80012345-6"
+                      className="sf-input"
+                      style={{ fontFamily: 'monospace' }}
+                    />
+                  </div>
+
+                  <div style={s.field}>
+                    <label style={s.label(darkMode)}>Nombre de Fantasía</label>
+                    <input
+                      type="text"
+                      value={nombreFantasia}
+                      onChange={(e) => setNombreFantasia(e.target.value)}
+                      placeholder="KaruApp Restaurante"
+                      className="sf-input"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ ...s.field, flex: 1 }}>
+                      <label style={s.label(darkMode)}>Tipo de Contribuyente</label>
+                      <select
+                        value={tipoContribuyente}
+                        onChange={(e) => setTipoContribuyente(Number(e.target.value))}
+                        className="sf-select"
+                      >
+                        <option value={1}>1 - Contribuyente / Micro</option>
+                        <option value={2}>2 - No Contribuyente</option>
+                        <option value={3}>3 - Est. Permanente / Registro Pym</option>
+                        <option value={4}>4 - Empresario</option>
+                        <option value={5}>5 - Sociedad / Condominio</option>
+                        <option value={6}>6 - Estado</option>
+                      </select>
+                    </div>
+                    <div style={{ ...s.field, flex: 1 }}>
+                      <label style={s.label(darkMode)}>Tipo de Régimen</label>
+                      <select
+                        value={tipoRegimen}
+                        onChange={(e) => setTipoRegimen(Number(e.target.value))}
+                        className="sf-select"
+                      >
+                        <option value={1}>1 - General</option>
+                        <option value={2}>2 - Pequeño contribuyente</option>
+                        <option value={3}>3 - Resimple</option>
+                        <option value={4}>4 - Agropecuario</option>
+                        <option value={8}>8 - Contribuyente</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ ...s.field, flex: 1 }}>
+                      <label style={s.label(darkMode)}>N° de Timbrado (8 dígitos)</label>
+                      <input
+                        type="text"
+                        value={timbradoNumero}
+                        onChange={(e) => setTimbradoNumero(e.target.value)}
+                        placeholder="12345678"
+                        className="sf-input"
+                        style={{ fontFamily: 'monospace' }}
+                      />
+                      <p style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#888', margin: '5px 0 0' }}>
+                        Solo el número de 8 dígitos, sin guiones.
+                      </p>
+                    </div>
+                    <div style={{ ...s.field, flex: 1 }}>
+                      <label style={s.label(darkMode)}>Fecha de Inicio del Timbrado</label>
+                      <input
+                        type="date"
+                        value={fechaInicio}
+                        onChange={(e) => setFechaInicio(e.target.value)}
+                        className="sf-input"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* CERTIFICADO DIGITAL */}
@@ -557,29 +687,6 @@ export default function SifenConfig() {
                       placeholder="Av. San Martín"
                       className="sf-input"
                     />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ ...s.field, flex: 1 }}>
-                      <label style={s.label(darkMode)}>Número de casa</label>
-                      <input
-                        type="number"
-                        value={dNumCas}
-                        onChange={(e) => setDNumCas(Number(e.target.value))}
-                        placeholder="1234"
-                        className="sf-input"
-                      />
-                    </div>
-                    <div style={{ ...s.field, flex: 1 }}>
-                      <label style={s.label(darkMode)}>Email</label>
-                      <input
-                        type="email"
-                        value={dEmailE}
-                        onChange={(e) => setDEmailE(e.target.value)}
-                        placeholder="email@restaurante.com"
-                        className="sf-input"
-                      />
-                    </div>
                   </div>
                 </div>
 

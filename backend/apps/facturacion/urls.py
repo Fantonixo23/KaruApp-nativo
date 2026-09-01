@@ -10,7 +10,9 @@ from .views import (
     crear_metodo_pago,
     actualizar_metodo_pago,
     eliminar_metodo_pago,
-    buscar_cliente_ruc
+    buscar_cliente_ruc,
+    sifen_status,
+    sifen_certificado_subir
 )
 
 urlpatterns = [
@@ -25,4 +27,6 @@ urlpatterns = [
     path('facturacion/metodos-pago/<int:pk>/editar', actualizar_metodo_pago, name='actualizar_metodo_pago'),
     path('facturacion/metodos-pago/<int:pk>/eliminar', eliminar_metodo_pago, name='eliminar_metodo_pago'),
     path('facturacion/buscar-ruc', buscar_cliente_ruc, name='buscar_cliente_ruc'),
+    path('sifen/status', sifen_status, name='sifen_status'),
+    path('sifen/certificado/subir', sifen_certificado_subir, name='sifen_certificado_subir'),
 ]

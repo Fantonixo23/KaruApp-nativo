@@ -132,3 +132,7 @@ REST_FRAMEWORK = {
 }
 
 PRINT_API_TOKEN = os.environ.get('PRINT_API_TOKEN', 'pipper-print-token-default')
+
+# SIFEN
+SIFEN_SERVICE_URL = os.environ.get('SIFEN_SERVICE_URL', 'http://127.0.0.1:4000')
+SIFEN_SERVICE_TOKEN = os.environ.get('SIFEN_SERVICE_TOKEN', '')

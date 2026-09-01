@@ -40,6 +40,7 @@ if errorlevel 1 (
 echo.
 start "karuAPP - Django" /D "%~dp0backend" cmd /k "venv\Scripts\activate && python socket_server.py"
 start "karuAPP - Print"  /D "%~dp0backend" cmd /k "venv\Scripts\activate && python print_service\print_server.py"
+start "karuAPP - SIFEN" /D "%~dp0sifen-service" cmd /k "node server.js"
 
 timeout /t 3 >nul
 start http://localhost:8000
