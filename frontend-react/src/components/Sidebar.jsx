@@ -11,6 +11,7 @@ const ALL_ITEMS = [
   { path: '/app/delivery', icon: 'delivery_dining', label: 'Delivery', modulo: 'delivery' },
   { path: '/app/informes', icon: 'analytics', label: 'Informes', modulo: 'informes' },
   { path: '/app/productos', icon: 'inventory_2', label: 'Productos', modulo: 'productos' },
+  { path: '/app/menu', icon: 'restaurant_menu', label: 'Carta', modulo: 'carta' },
   { path: '/app/inventario', icon: 'inventory', label: 'Inventario', modulo: 'inventario' },
   { path: '/app/configuracion', icon: 'settings', label: 'Config', modulo: 'configuracion' },
 ]
@@ -78,9 +79,13 @@ export default function Sidebar({ activePath }) {
                 minWidth: 0,
               }}
             >
-              <span className="material-icons" style={{ fontSize: isLandscape ? '18px' : '22px', lineHeight: 1 }}>
-                {item.icon}
-              </span>
+              {item.emoji ? (
+                <span style={{ fontSize: isLandscape ? '18px' : '22px', lineHeight: 1 }}>{item.icon}</span>
+              ) : (
+                <span className="material-icons" style={{ fontSize: isLandscape ? '18px' : '22px', lineHeight: 1 }}>
+                  {item.icon}
+                </span>
+              )}
               <span style={{ fontSize: isLandscape ? '8px' : '9px', fontWeight: '600', lineHeight: 1.1 }}>{item.label}</span>
             </Link>
           )
@@ -139,9 +144,13 @@ export default function Sidebar({ activePath }) {
             transition: 'all 0.2s',
           }}
         >
-          <span className="material-icons" style={{ fontSize: '24px' }}>
-            {item.icon}
-          </span>
+          {item.emoji ? (
+            <span style={{ fontSize: '24px', lineHeight: 1 }}>{item.icon}</span>
+          ) : (
+            <span className="material-icons" style={{ fontSize: '24px' }}>
+              {item.icon}
+            </span>
+          )}
           <span style={{ marginTop: '3px' }}>{item.label}</span>
         </Link>
       ))}

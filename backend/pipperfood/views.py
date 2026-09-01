@@ -156,6 +156,27 @@ def qr_conexion(request):
         'qr_base64': qr_b64,
     })
 
+@require_http_methods(["GET"])
+def qr_carta(request):
+    hostname = socket.gethostname()
+    ips = _get_local_ips()
+    base = f'http://{ips[0]}:8000' if ips else f'http://{hostname}:8000'
+    url_carta = f'{base}/carta'
+    try:
+        import qrcode
+        from io import BytesIO
+        import base64
+        img = qrcode.make(url_carta)
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        qr_b64 = None
+    return JsonResponse({
+        'url': url_carta,
+        'qr_base64': qr_b64,
+    })
+
 from pathlib import Path
 import datetime
 

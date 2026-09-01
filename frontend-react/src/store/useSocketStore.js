@@ -10,6 +10,7 @@ export const useSocketStore = create((set, get) => ({
   mesaUpdates: [],
   pedidoUpdates: [],
   cocinaNotifications: [],
+  cartaActualizada: null,
   
   initSocket: () => {
     if (socket?.connected) return
@@ -22,6 +23,7 @@ export const useSocketStore = create((set, get) => ({
       socket.off('pedido_update')
       socket.off('nuevo_pedido_cocina')
       socket.off('pedido_modificado')
+      socket.off('carta_actualizada')
       socket.off('connect_error')
       socket.disconnect()
       socket = null
@@ -71,6 +73,11 @@ export const useSocketStore = create((set, get) => ({
     socket.on('pedido_modificado', (data) => {
       console.log('📡 Pedido modificado:', data)
       get().handleMessage({ type: 'pedido_modificado', pedido: data })
+    })
+
+    socket.on('carta_actualizada', (data) => {
+      console.log('📡 Carta actualizada:', data)
+      get().handleMessage({ type: 'carta_actualizada' })
     })
 
     socket.on('connect_error', (error) => {
@@ -145,6 +152,10 @@ export const useSocketStore = create((set, get) => ({
         lastUpdate: { type: 'cobro', data: data.cobro, time: new Date() }
       }))
     }
+
+    if (tipo === 'carta_actualizada') {
+      set({ cartaActualizada: new Date().getTime() })
+    }
   },
   
   // Desconectar
@@ -173,6 +184,7 @@ export const useRealTime = () => {
   const lastUpdate = useSocketStore(state => state.lastUpdate)
   const cocinaNotifications = useSocketStore(state => state.cocinaNotifications)
   const mesaUpdates = useSocketStore(state => state.mesaUpdates)
+  const cartaActualizada = useSocketStore(state => state.cartaActualizada)
   const connected = useSocketStore(state => state.connected)
   const clearNotifications = useSocketStore(state => state.clearNotifications)
   
@@ -182,6 +194,7 @@ export const useRealTime = () => {
     lastUpdate,
     cocinaNotifications,
     mesaUpdates,
+    cartaActualizada,
     connected,
     clearNotifications
   }

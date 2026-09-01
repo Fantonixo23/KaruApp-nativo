@@ -7,6 +7,78 @@ from apps.usuarios.decorators import requiere_autenticacion, requiere_rol
 from .models import Categoria, Producto
 
 
+# ========== CARTA DIGITAL (público) ==========
+
+@require_http_methods(["GET"])
+def carta_digital(request):
+    """Devuelve el menú público agrupado por categoría, solo productos disponibles."""
+
+    # Info básica del negocio
+    try:
+        from apps.facturacion.models import Configuracion
+        config = Configuracion.objects.first()
+        nombre_negocio = config.nombre_empresa if (config and config.nombre_empresa) else 'karuAPP'
+        info_empresa = {
+            'nombre': f"Restaurante - {nombre_negocio}",
+            'logo': None,
+        }
+    except Exception:
+        info_empresa = {'nombre': 'Restaurante - karuAPP', 'logo': None}
+
+    def serializar_producto(p):
+        imagen_url = None
+        if p.imagen:
+            raw = str(p.imagen).strip()
+            if raw.startswith('http'):
+                imagen_url = raw
+            elif raw.startswith('/media/'):
+                imagen_url = raw          # ya tiene el prefijo correcto
+            elif raw:
+                imagen_url = '/media/' + raw.lstrip('/')
+        if not imagen_url and p.imagen_archivo:
+            try:
+                imagen_url = p.imagen_archivo.url
+            except Exception:
+                pass
+        return {
+            'id': p.id,
+            'nombre': p.nombre,
+            'descripcion': p.descripcion or '',
+            'ingredientes': p.ingredientes or '',
+            'notas': p.notas or '',
+            'precio': int(p.precio),
+            'imagen': imagen_url,
+            'variantes': p.variantes or [],
+        }
+
+    data = []
+
+    # Productos con categoría
+    categorias = Categoria.objects.prefetch_related('productos').order_by('orden', 'nombre')
+    for cat in categorias:
+        productos = cat.productos.filter(disponible=True)
+        if not productos.exists():
+            continue
+        data.append({
+            'id': cat.id,
+            'nombre': cat.nombre,
+            'icono': cat.icono,
+            'productos': [serializar_producto(p) for p in productos],
+        })
+
+    # Productos SIN categoría (cat=None)
+    sin_cat = Producto.objects.filter(disponible=True, categoria__isnull=True)
+    if sin_cat.exists():
+        data.append({
+            'id': 0,
+            'nombre': 'Otros',
+            'icono': 'restaurant_menu',
+            'productos': [serializar_producto(p) for p in sin_cat],
+        })
+
+    return JsonResponse({'success': True, 'empresa': info_empresa, 'categorias': data})
+
+
 # ========== CATEGORÍAS ==========
 
 @require_http_methods(["GET"])
@@ -155,6 +227,8 @@ def lista_productos(request):
             'id': p.id,
             'nombre': p.nombre,
             'descripcion': p.descripcion,
+            'ingredientes': p.ingredientes,
+            'notas': p.notas,
             'precio': str(p.precio),
             'categoria_id': p.categoria_id,
             'categoria_nombre': p.categoria.nombre if p.categoria else None,
@@ -178,6 +252,8 @@ def crear_producto(request):
         nombre = data.get('nombre')
         precio = data.get('precio', 0)
         descripcion = data.get('descripcion', '')
+        ingredientes = data.get('ingredientes', '')
+        notas = data.get('notas', '')
         categoria_id = data.get('categoria_id')
         disponible = data.get('disponible', True)
         variantes = data.get('variantes')
@@ -191,6 +267,8 @@ def crear_producto(request):
         producto = Producto.objects.create(
             nombre=nombre,
             descripcion=descripcion,
+            ingredientes=ingredientes,
+            notas=notas,
             precio=precio,
             categoria_id=categoria_id,
             disponible=disponible,
@@ -239,6 +317,8 @@ def modificar_producto(request, pk):
         
         producto.nombre = data.get('nombre', producto.nombre)
         producto.descripcion = data.get('descripcion', producto.descripcion)
+        producto.ingredientes = data.get('ingredientes', producto.ingredientes)
+        producto.notas = data.get('notas', producto.notas)
         producto.precio = data.get('precio', producto.precio)
         producto.categoria_id = data.get('categoria_id', producto.categoria_id)
         producto.disponible = data.get('disponible', producto.disponible)
@@ -255,6 +335,60 @@ def modificar_producto(request, pk):
                 'nombre': producto.nombre,
                 'precio': str(producto.precio),
                 'disponible': producto.disponible
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+@requiere_autenticacion
+def modificar_carta(request, pk):
+    """Actualiza el contenido de un producto para la carta digital
+    (descripción, ingredientes, notas y disponibilidad)."""
+    try:
+        data = json.loads(request.body)
+        try:
+            producto = Producto.objects.get(pk=pk)
+        except Producto.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Producto no encontrado'
+            }, status=404)
+
+        if 'descripcion' in data:
+            v = data.get('descripcion')
+            producto.descripcion = v if isinstance(v, str) else str(v or '')
+        if 'ingredientes' in data:
+            v = data.get('ingredientes')
+            producto.ingredientes = v if isinstance(v, str) else str(v or '')
+        if 'notas' in data:
+            v = data.get('notas')
+            producto.notas = v if isinstance(v, str) else str(v or '')
+        if 'disponible' in data:
+            producto.disponible = bool(data.get('disponible'))
+
+        producto.save()
+
+        # Notificar a la carta digital abierta para que se actualice en tiempo real
+        try:
+            from pipperfood.socket_events import emit_carta_actualizada
+            emit_carta_actualizada()
+        except Exception:
+            pass
+
+        return JsonResponse({
+            'success': True,
+            'producto': {
+                'id': producto.id,
+                'descripcion': producto.descripcion or '',
+                'ingredientes': producto.ingredientes or '',
+                'notas': producto.notas or '',
+                'disponible': producto.disponible,
             }
         })
     except Exception as e:
@@ -342,6 +476,13 @@ def toggle_producto(request, pk):
         producto = Producto.objects.get(pk=pk)
         producto.disponible = not producto.disponible
         producto.save()
+        
+        # Notificar a la carta digital abierta para que se actualice en tiempo real
+        try:
+            from pipperfood.socket_events import emit_carta_actualizada
+            emit_carta_actualizada()
+        except Exception:
+            pass
         
         return JsonResponse({
             'success': True,

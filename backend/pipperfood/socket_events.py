@@ -34,3 +34,6 @@ def emit_pedido_modificado(pedido):
 
 def emit_cobro(cobro):
     _emit_event('cobro', {'type': 'cobro', 'cobro': cobro})
+
+def emit_carta_actualizada():
+    _emit_event('carta_actualizada', {'type': 'carta_actualizada'})

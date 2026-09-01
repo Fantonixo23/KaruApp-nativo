@@ -7,6 +7,7 @@ from .views import (
     activar_licencia,
     print_token,
     qr_conexion,
+    qr_carta,
     backup_status,
     backup_run,
 )
@@ -20,6 +21,7 @@ urlpatterns = [
     path('activar-licencia', activar_licencia, name='activar_licencia'),
     path('print-token', print_token, name='print_token'),
     path('qr-conexion', qr_conexion, name='qr_conexion'),
+    path('qr-carta', qr_carta, name='qr_carta'),
     path('backup', backup_status, name='backup_status'),
     path('backup/run', backup_run, name='backup_run'),
 ]

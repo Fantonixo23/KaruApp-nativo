@@ -6,14 +6,19 @@ from .views import (
     eliminar_categoria,
     lista_productos,
     crear_producto,
+    modificar_carta,
     modificar_producto,
     eliminar_producto,
     toggle_producto,
     subir_imagen,
-    limpiar_productos
+    limpiar_productos,
+    carta_digital,
 )
 
 urlpatterns = [
+    # Carta digital pública
+    path('carta', carta_digital, name='carta_digital'),
+
     # Categorías
     path('categorias', lista_categorias, name='lista_categorias'),
     path('categorias/crear', crear_categoria, name='crear_categoria'),
@@ -26,6 +31,7 @@ urlpatterns = [
     path('productos/limpiar', limpiar_productos, name='limpiar_productos'),
     path('productos/subir-imagen', subir_imagen, name='subir_imagen'),
     path('productos/<int:pk>/editar', modificar_producto, name='modificar_producto'),
+    path('productos/<int:pk>/carta', modificar_carta, name='modificar_carta'),
     path('productos/<int:pk>/eliminar', eliminar_producto, name='eliminar_producto'),
     path('productos/<int:pk>/toggle', toggle_producto, name='toggle_producto'),
 ]

@@ -20,6 +20,8 @@ class Categoria(models.Model):
 class Producto(models.Model):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, null=True)
+    ingredientes = models.TextField(blank=True, null=True, help_text='Ingredientes del plato (visible en la carta digital)')
+    notas = models.TextField(blank=True, null=True, help_text='Notas / recomendaciones de servicio (visible en la carta digital)')
     precio = models.DecimalField(max_digits=10, decimal_places=0)
     categoria = models.ForeignKey(
         Categoria,
