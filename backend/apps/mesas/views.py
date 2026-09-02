@@ -9,7 +9,12 @@ from .models import Mesa
 @require_http_methods(["GET"])
 @requiere_autenticacion
 def lista_mesas(request):
-    """Lista todas las mesas"""
+    """Lista todas las mesas. reserva_activa = reserva vigente AHORA (ventana de tiempo)."""
+    from apps.reservas.models import Reserva
+    reservas_vigentes = {
+        r.mesa_id: r
+        for r in Reserva.vigentes_ahora()
+    }
     mesas = Mesa.objects.all().order_by('numero')
     data = [{
         'id': m.id,
@@ -21,9 +26,22 @@ def lista_mesas(request):
         'comensales': m.comensales,
         'pedidos_activos': m.pedidos_activos,
         'pedido_id': m.pedido_actual.id if m.pedido_actual else None,
-        'tiempo_ocupado': m.tiempo_ocupado
+        'tiempo_ocupado': m.tiempo_ocupado,
+        'reserva_activa': _serializar_reserva(reservas_vigentes.get(m.id)) if reservas_vigentes.get(m.id) else None,
     } for m in mesas]
     return JsonResponse({'success': True, 'mesas': data})
+
+
+def _serializar_reserva(r):
+    if not r:
+        return None
+    return {
+        'id': r.id,
+        'cliente_nombre': r.cliente_nombre,
+        'hora': r.hora.strftime('%H:%M'),
+        'comensales': r.comensales,
+        'estado': r.estado,
+    }
 
 
 @csrf_exempt
@@ -198,9 +216,8 @@ def cerrar_mesa(request):
                 'error': 'Mesa no encontrada'
             }, status=404)
         
-        mesa.estado = 'disponible'
         mesa.comensales = 0
-        mesa.save()
+        mesa.sincronizar_estado()
         
         return JsonResponse({
             'success': True,
@@ -254,7 +271,7 @@ def cambiar_estado_mesa(request, pk):
         data = json.loads(request.body)
         nuevo_estado = data.get('estado')
         
-        if nuevo_estado not in ['disponible', 'libre', 'ocupada', 'limpieza']:
+        if nuevo_estado not in ['disponible', 'libre', 'ocupada', 'reservada', 'limpieza']:
             return JsonResponse({
                 'success': False,
                 'error': 'Estado no válido'
@@ -268,8 +285,14 @@ def cambiar_estado_mesa(request, pk):
                 'error': 'Mesa no encontrada'
             }, status=404)
         
-        mesa.estado = nuevo_estado
-        mesa.save()
+        if nuevo_estado in ['disponible', 'libre']:
+            mesa.sincronizar_estado()
+        else:
+            mesa.estado = nuevo_estado
+            mesa.save()
+        
+        from pipperfood.socket_events import emit_mesa_update
+        emit_mesa_update({'id': mesa.id, 'numero': mesa.numero, 'estado': mesa.estado})
         
         return JsonResponse({
             'success': True,

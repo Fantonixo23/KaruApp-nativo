@@ -66,3 +66,19 @@ class Mesa(models.Model):
             mins = minutos % 60
             return f"{horas}h {mins}m"
         return "0min"
+
+    def sincronizar_estado(self, guardar=True):
+        """Recomputa el estado real de la mesa según pedidos activos
+        y reservas pendientes/confirmadas vigentes en este momento."""
+        nuevo = 'disponible'
+        if self.pedidos_activos > 0:
+            nuevo = 'ocupada'
+        else:
+            from apps.reservas.models import Reserva
+            if Reserva.vigentes_ahora(mesa=self):
+                nuevo = 'reservada'
+        if self.estado != nuevo:
+            self.estado = nuevo
+            if guardar:
+                self.save()
+        return nuevo

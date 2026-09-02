@@ -12,6 +12,7 @@ const ALL_ITEMS = [
   { path: '/app/informes', icon: 'analytics', label: 'Informes', modulo: 'informes' },
   { path: '/app/productos', icon: 'inventory_2', label: 'Productos', modulo: 'productos' },
   { path: '/app/menu', icon: 'restaurant_menu', label: 'Carta', modulo: 'carta' },
+  { path: '/app/reservas', icon: 'event', label: 'Reservas', modulo: 'reservas' },
   { path: '/app/inventario', icon: 'inventory', label: 'Inventario', modulo: 'inventario' },
   { path: '/app/configuracion', icon: 'settings', label: 'Config', modulo: 'configuracion' },
 ]

@@ -37,3 +37,6 @@ def emit_cobro(cobro):
 
 def emit_carta_actualizada():
     _emit_event('carta_actualizada', {'type': 'carta_actualizada'})
+
+def emit_reserva_actualizada():
+    _emit_event('reserva_actualizada', {'type': 'reserva_actualizada'})

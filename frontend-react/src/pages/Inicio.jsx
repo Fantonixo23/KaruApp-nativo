@@ -49,6 +49,8 @@ const ALL_AREAS = [
   { path: '/app/delivery', icon: 'delivery_dining', label: 'Delivery', desc: 'Pedidos a domicilio', modulo: 'delivery' },
   { path: '/app/informes', icon: 'analytics', label: 'Informes', desc: 'Reportes y ventas', modulo: 'informes' },
   { path: '/app/productos', icon: 'inventory_2', label: 'Productos', desc: 'Catalogo y stock', modulo: 'productos' },
+  { path: '/app/menu', icon: 'restaurant_menu', label: 'Carta', desc: 'Carta digital y QR', modulo: 'carta' },
+  { path: '/app/reservas', icon: 'event', label: 'Reservas', desc: 'Reservas de mesas', modulo: 'reservas' },
   { path: '/app/inventario', icon: 'warehouse', label: 'Inventario', desc: 'Control de stock', modulo: 'inventario' },
 ]
 

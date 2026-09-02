@@ -33,6 +33,7 @@ export default function NuevaVenta() {
   const [modalEditar, setModalEditar] = useState(false)
   const [modalOcupar, setModalOcupar] = useState(false)
   const [modalEstado, setModalEstado] = useState(false)
+  const [modalReservada, setModalReservada] = useState(false)
   const [modalConfirmar, setModalConfirmar] = useState(false)
   const [mesaAEliminar, setMesaAEliminar] = useState(null)
   const [error, setError] = useState(null)
@@ -164,6 +165,8 @@ export default function NuevaVenta() {
         cargarPedidosMesa(mesa.id)
       } else if (mesa.estado === 'limpieza') {
         setPanelAbierto(true)
+      } else if (mesa.estado === 'reservada') {
+        setModalReservada(true)
       }
     }
   }
@@ -296,6 +299,7 @@ export default function NuevaVenta() {
   const getEstado = (estado) => {
     if (estado === 'ocupada') return { bg: '#E53935', bgSoft: 'rgba(229,57,53,0.12)', border: '#E53935', texto: 'Ocupada', icono: 'block' }
     if (estado === 'limpieza') return { bg: '#FBC02D', bgSoft: 'rgba(251,192,45,0.12)', border: '#FBC02D', texto: 'Limpieza', icono: 'cleaning_services' }
+    if (estado === 'reservada') return { bg: '#9C27B0', bgSoft: 'rgba(156,39,176,0.12)', border: '#9C27B0', texto: 'Reservada', icono: 'event' }
     return { bg: '#4CAF50', bgSoft: 'rgba(76,175,80,0.12)', border: '#4CAF50', texto: 'Disponible', icono: 'check_circle' }
   }
 
@@ -528,6 +532,21 @@ export default function NuevaVenta() {
                       <span className="material-icons" style={{ fontSize: '16px', color: darkMode ? 'rgba(255,255,255,0.3)' : '#999' }}>schedule</span>
                       <span>{formatTime(mesaSeleccionada.tiempo_ocupado)}</span>
                     </div>
+                    {mesaSeleccionada.reserva_activa && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        background: 'rgba(156,39,176,0.12)', border: '1px solid rgba(156,39,176,0.3)',
+                        borderRadius: '10px', padding: '8px 10px', fontSize: '12px', color: '#9C27B0',
+                      }}>
+                        <span className="material-icons" style={{ fontSize: '16px' }}>event</span>
+                        <div>
+                          <div style={{ fontWeight: '700' }}>{mesaSeleccionada.reserva_activa.cliente_nombre}</div>
+                          <div style={{ fontSize: '11px', opacity: 0.85 }}>
+                            {mesaSeleccionada.reserva_activa.hora} · {mesaSeleccionada.reserva_activa.comensales} pers
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -674,6 +693,39 @@ export default function NuevaVenta() {
             </div>
           )}
 
+          {/* Modal mesa reservada */}
+          {modalReservada && mesaSeleccionada && (
+            <div style={s.modal(darkMode)}>
+              <div style={s.modalCard(darkMode)}>
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(156,39,176,0.12)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span className="material-icons" style={{ fontSize: '28px', color: '#9C27B0' }}>event</span>
+                  </div>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px', color: darkMode ? '#fff' : '#1a1a1a' }}>Esta mesa está reservada</h3>
+                  {mesaSeleccionada.reserva_activa ? (
+                    <p style={{ color: darkMode ? 'rgba(255,255,255,0.5)' : '#888', fontSize: '12px', margin: '6px 0 0' }}>
+                      Mesa {mesaSeleccionada.numero} · <strong style={{ color: '#9C27B0' }}>{mesaSeleccionada.reserva_activa.cliente_nombre}</strong>
+                      <br />{mesaSeleccionada.reserva_activa.hora} · {mesaSeleccionada.reserva_activa.comensales} personas
+                    </p>
+                  ) : (
+                    <p style={{ color: darkMode ? 'rgba(255,255,255,0.5)' : '#888', fontSize: '12px', margin: '6px 0 0' }}>
+                      Mesas {mesaSeleccionada.numero} tiene una reserva para hoy
+                    </p>
+                  )}
+                  <p style={{ color: darkMode ? 'rgba(255,255,255,0.35)' : '#999', fontSize: '11px', margin: '10px 0 0' }}>
+                    Podés ocuparla igualmente; la reserva se mantiene y la mesa volverá a morada al cerrar el pedido.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button onClick={() => setModalReservada(false)} style={s.btnSecundario(darkMode)}>Cerrar</button>
+                  <button onClick={() => { setModalReservada(false); setModalOcupar(true) }} style={{ ...s.btnPrimario(false), background: 'linear-gradient(135deg, #9C27B0, #7B1FA2)' }}>
+                    Ocupar Mesa
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Modal editar mesa */}
           {modalEditar && mesaSeleccionada && (
             <div style={s.modal(darkMode)}>
@@ -701,6 +753,7 @@ export default function NuevaVenta() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {[{ estado: 'disponible', label: 'Disponible', color: '#4CAF50', icono: 'check_circle' },
                     { estado: 'ocupada', label: 'Ocupada', color: '#E53935', icono: 'block' },
+                    { estado: 'reservada', label: 'Reservada', color: '#9C27B0', icono: 'event' },
                     { estado: 'limpieza', label: 'Limpieza', color: '#FBC02D', icono: 'cleaning_services' }
                   ].map(({ estado, label, color, icono }) => (
                     <button key={estado} onClick={() => cambiarEstado(estado)}

@@ -363,9 +363,9 @@ function ProductoModal({ producto, onClose }) {
                     border: "1px solid rgba(255,255,255,0.08)"
                   }}>
                     <span style={{ fontSize: 14 }}>{v.nombre || v.name || String(v)}</span>
-                    {(v.precio || v.price) && (
+{(v.precio || v.price) && (
                       <span style={{ color: "#4CAF50", fontWeight: 700, fontSize: 14 }}>
-                        + {formatGs(v.precio || v.price)}
+                        {formatGs(v.precio || v.price)}
                       </span>
                     )}
                   </div>

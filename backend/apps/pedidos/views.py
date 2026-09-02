@@ -865,8 +865,7 @@ def pagar_pedido(request, pk):
                     estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
                 ).exclude(pk=pedido.pk).exists()
                 if not otros_activos:
-                    pedido.mesa.estado = 'disponible'
-                    pedido.mesa.save()
+                    pedido.mesa.sincronizar_estado()
             
             total_con_propina = Decimal(str(pedido.total)) + Decimal(str(propinas))
             usuario_obj = Usuario.objects.filter(pk=usuario_id).first() if usuario_id else None
@@ -1097,8 +1096,8 @@ def cobrar_mesa(request, mesa_id):
                 estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
             ).exists()
             if not otros_activos:
-                mesa.estado = 'disponible'
-                mesa.save()
+                mesa = Mesa.objects.get(pk=mesa_id)
+                mesa.sincronizar_estado()
         
             factura_data = None
         
@@ -1352,8 +1351,7 @@ def cancelar_pedido(request, pk):
                     estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
                 ).exclude(pk=pedido.pk).exists()
                 if not otros_activos:
-                    pedido.mesa.estado = 'disponible'
-                    pedido.mesa.save()
+                    pedido.mesa.sincronizar_estado()
         
         try:
             from pipperfood.socket_events import emit_pedido_update, emit_mesa_update
@@ -1364,7 +1362,7 @@ def cancelar_pedido(request, pk):
                 'motivo': motivo
             })
             if pedido.mesa:
-                estado_mesa = 'disponible'
+                estado_mesa = pedido.mesa.estado
                 otros_activos = Pedido.objects.filter(
                     mesa=pedido.mesa,
                     estado__in=['pendiente', 'cocinando', 'listo', 'en_camino', 'entregado']
