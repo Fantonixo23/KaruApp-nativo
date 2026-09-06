@@ -41,6 +41,8 @@ export default function Configuracion() {
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
   const isMobile = useStore((state) => state.isMobile)
+  const hiddenModules = useStore((state) => state.hiddenModules)
+  const toggleHiddenModule = useStore((state) => state.toggleHiddenModule)
 
   useEffect(() => { initDarkMode(); syncDarkMode() }, [])
 
@@ -312,6 +314,62 @@ export default function Configuracion() {
               placeholder="021-123456"
               style={s.input(darkMode)}
             />
+          </div>
+        </div>
+
+        <div style={s.card(darkMode)} className="animate">
+          <h2 style={s.cardTitle(darkMode)}>Modulos Visibles</h2>
+          <p style={s.subtitle(darkMode)}>Activa o desactiva los modulos que se muestran en el menu y el inicio</p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {[
+              { modulo: 'mesas', icon: 'table_restaurant', label: 'Mesas', desc: 'Gestionar mesas' },
+              { modulo: 'cocina', icon: 'restaurant', label: 'Cocina', desc: 'Pedidos en cocina' },
+              { modulo: 'caja', icon: 'point_of_sale', label: 'Caja', desc: 'Cobros y facturas' },
+              { modulo: 'delivery', icon: 'delivery_dining', label: 'Delivery', desc: 'Pedidos a domicilio' },
+              { modulo: 'informes', icon: 'analytics', label: 'Informes', desc: 'Reportes y ventas' },
+              { modulo: 'productos', icon: 'inventory_2', label: 'Productos', desc: 'Catalogo y stock' },
+              { modulo: 'autoservicio', icon: 'dining', label: 'Autoservi', desc: 'Venta por kilos' },
+              { modulo: 'carta', icon: 'restaurant_menu', label: 'Carta', desc: 'Carta digital y QR' },
+              { modulo: 'reservas', icon: 'event', label: 'Reservas', desc: 'Reservas de mesas' },
+              { modulo: 'inventario', icon: 'warehouse', label: 'Inventario', desc: 'Control de stock' },
+            ].map(({ modulo, icon, label, desc }) => {
+              const visible = !hiddenModules.includes(modulo)
+              return (
+                <div key={modulo} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '10px 14px', borderRadius: '10px',
+                  background: visible
+                    ? (darkMode ? 'rgba(76,175,80,0.08)' : 'rgba(76,175,80,0.04)')
+                    : (darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                  border: `1px solid ${visible ? 'rgba(76,175,80,0.25)' : (darkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                  opacity: visible ? 1 : 0.6,
+                  transition: 'all 0.2s',
+                }}>
+                  <span className="material-icons" style={{ fontSize: '22px', color: visible ? '#4CAF50' : '#999' }}>{icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: '700', fontSize: '13px', color: darkMode ? '#fff' : '#333' }}>{label}</div>
+                    <div style={{ fontSize: '11px', color: darkMode ? 'rgba(255,255,255,0.4)' : '#999' }}>{desc}</div>
+                  </div>
+                  <button
+                    onClick={() => toggleHiddenModule(modulo)}
+                    style={{
+                      position: 'relative', width: '44px', height: '24px', flexShrink: 0,
+                      background: visible ? '#4CAF50' : (darkMode ? '#555' : '#ccc'),
+                      borderRadius: '12px', cursor: 'pointer', border: 'none', padding: 0,
+                      transition: 'background 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', top: '2px', left: visible ? '22px' : '2px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: 'white', transition: 'left 0.2s',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                    }} />
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
 

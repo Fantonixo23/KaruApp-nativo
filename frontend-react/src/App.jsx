@@ -12,7 +12,7 @@ import Configuracion from './pages/Configuracion'
 import SifenConfig from './pages/SifenConfig'
 import Carta from './pages/Carta'
 import Reservas from './pages/Reservas'
-import { Config, Mesero, ParaLlevar, Admin } from './pages/Placeholders'
+import { Config, Mesero, ParaLlevar, Admin, Autoservicio } from './pages/Placeholders'
 import { FullscreenProvider } from './hooks/useFullscreen.jsx'
 import { useMediaQuery } from './hooks/useMediaQuery'
 import { useStore } from './store/useStore'
@@ -50,6 +50,7 @@ export default function App() {
             <Route path="/app/inventario" element={<Inventario />} />
             <Route path="/app/configuracion" element={<MobileGuard><Configuracion /></MobileGuard>} />
             <Route path="/app/sifen" element={<SifenConfig />} />
+            <Route path="/app/autoservi" element={<Autoservicio />} />
             <Route path="/app/config" element={<Config />} />
             <Route path="/app/mesero" element={<Mesero />} />
             <Route path="/app/para-llevar" element={<ParaLlevar />} />

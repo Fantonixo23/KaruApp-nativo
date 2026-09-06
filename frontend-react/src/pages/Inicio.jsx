@@ -49,6 +49,7 @@ const ALL_AREAS = [
   { path: '/app/delivery', icon: 'delivery_dining', label: 'Delivery', desc: 'Pedidos a domicilio', modulo: 'delivery' },
   { path: '/app/informes', icon: 'analytics', label: 'Informes', desc: 'Reportes y ventas', modulo: 'informes' },
   { path: '/app/productos', icon: 'inventory_2', label: 'Productos', desc: 'Catalogo y stock', modulo: 'productos' },
+  { path: '/app/autoservi', icon: 'dining', label: 'Autoservi', desc: 'Venta por kilos', modulo: 'autoservicio' },
   { path: '/app/menu', icon: 'restaurant_menu', label: 'Carta', desc: 'Carta digital y QR', modulo: 'carta' },
   { path: '/app/reservas', icon: 'event', label: 'Reservas', desc: 'Reservas de mesas', modulo: 'reservas' },
   { path: '/app/inventario', icon: 'warehouse', label: 'Inventario', desc: 'Control de stock', modulo: 'inventario' },
@@ -60,6 +61,7 @@ export default function Inicio() {
   const initDarkMode = useStore((state) => state.initDarkMode)
   const syncDarkMode = useStore((state) => state.syncDarkMode)
   const isMobile = useStore((state) => state.isMobile)
+  const hiddenModules = useStore((state) => state.hiddenModules)
   useEffect(() => { initDarkMode(); syncDarkMode() }, [])
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [hora, setHora] = useState(new Date())
@@ -162,7 +164,11 @@ export default function Inicio() {
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px' }}>
-          {ALL_AREAS.filter(area => !isMobile || !MOBILE_HIDDEN_MODULES.includes(area.modulo)).map((area, i) => (
+          {ALL_AREAS.filter(area => {
+            if (isMobile && MOBILE_HIDDEN_MODULES.includes(area.modulo)) return false
+            if (hiddenModules.includes(area.modulo)) return false
+            return true
+          }).map((area, i) => (
             <Link key={i} to={area.path} style={{
               borderRadius: '14px', padding: '18px 10px',
               display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -280,7 +286,11 @@ export default function Inicio() {
               <button onClick={() => setSidebarOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '24px', cursor: 'pointer', padding: 0 }}>&times;</button>
             </div>
 
-            {ALL_AREAS.filter(area => !isMobile || !MOBILE_HIDDEN_MODULES.includes(area.modulo)).map((area, i) => (
+            {ALL_AREAS.filter(area => {
+              if (isMobile && MOBILE_HIDDEN_MODULES.includes(area.modulo)) return false
+              if (hiddenModules.includes(area.modulo)) return false
+              return true
+            }).map((area, i) => (
               <Link key={i} to={area.path} onClick={() => setSidebarOpen(false)} style={{
                 display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 20px',
                 border: 'none', background: 'none', color: '#ccc', fontSize: '14px',

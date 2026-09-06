@@ -11,6 +11,7 @@ const ALL_ITEMS = [
   { path: '/app/delivery', icon: 'delivery_dining', label: 'Delivery', modulo: 'delivery' },
   { path: '/app/informes', icon: 'analytics', label: 'Informes', modulo: 'informes' },
   { path: '/app/productos', icon: 'inventory_2', label: 'Productos', modulo: 'productos' },
+  { path: '/app/autoservi', icon: 'dining', label: 'Autoservi', modulo: 'autoservicio' },
   { path: '/app/menu', icon: 'restaurant_menu', label: 'Carta', modulo: 'carta' },
   { path: '/app/reservas', icon: 'event', label: 'Reservas', modulo: 'reservas' },
   { path: '/app/inventario', icon: 'inventory', label: 'Inventario', modulo: 'inventario' },
@@ -21,12 +22,17 @@ const RED = '#D32F2F'
 
 export default function Sidebar({ activePath }) {
   const isMobile = useStore((state) => state.isMobile)
+  const hiddenModules = useStore((state) => state.hiddenModules)
   const [isLandscape, setIsLandscape] = useState(
     typeof window !== 'undefined' && window.innerWidth > window.innerHeight
   )
   const location = useLocation()
   const currentPath = activePath || location.pathname
-  const visibleItems = ALL_ITEMS.filter(item => !isMobile || !MOBILE_HIDDEN_MODULES.includes(item.modulo))
+  const visibleItems = ALL_ITEMS.filter(item => {
+    if (isMobile && MOBILE_HIDDEN_MODULES.includes(item.modulo)) return false
+    if (hiddenModules.includes(item.modulo)) return false
+    return true
+  })
 
   useEffect(() => {
     const check = () => setIsLandscape(window.innerWidth > window.innerHeight)

@@ -1,5 +1,18 @@
 import { create } from 'zustand'
 
+const getInitialHiddenModules = () => {
+  if (typeof window === 'undefined') return []
+  const saved = localStorage.getItem('hiddenModules')
+  if (saved) {
+    try {
+      return JSON.parse(saved)
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 const getInitialDarkMode = () => {
   if (typeof window === 'undefined') return false
   const saved = localStorage.getItem('darkMode')
@@ -25,6 +38,7 @@ const getInitialLicense = () => {
 
 export const useStore = create((set, get) => ({
   darkMode: getInitialDarkMode(),
+  hiddenModules: getInitialHiddenModules(),
   license: getInitialLicense(),
   isMobile: typeof window !== 'undefined' && (window.innerWidth < 768 || (window.matchMedia('(pointer: coarse)').matches && window.innerWidth < 1280)),
 
@@ -68,7 +82,16 @@ export const useStore = create((set, get) => ({
   setLicense: (licenseData) => {
     localStorage.setItem('license', JSON.stringify(licenseData))
     set({ license: licenseData })
-  }
+  },
+
+  toggleHiddenModule: (modulo) => {
+    const current = get().hiddenModules
+    const next = current.includes(modulo)
+      ? current.filter(m => m !== modulo)
+      : [...current, modulo]
+    localStorage.setItem('hiddenModules', JSON.stringify(next))
+    set({ hiddenModules: next })
+  },
 }))
 
 if (typeof window !== 'undefined') {

@@ -1,0 +1,17 @@
+{
+  "name": "sifen-service",
+  "version": "1.0.0",
+  "description": "Microservicio local que firma y envía documentos electrónicos a la SET (Paraguay) para KaruApp",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5",
+    "facturacionelectronicapy-xmlgen": "^1.0.34",
+    "facturacionelectronicapy-xmlsign": "^1.0.28",
+    "facturacionelectronicapy-qrgen": "^1.0.9",
+    "facturacionelectronicapy-setapi": "^1.0.30"
+  }
+}

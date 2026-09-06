@@ -1,0 +1,17 @@
+AGREGAR a iniciar.bat, justo después de esta línea:
+
+start "karuAPP - Print"  /D "%~dp0backend" cmd /k "venv\Scripts\activate && python print_service\print_server.py"
+
+ESTE bloque (antes del "timeout /t 3 >nul"):
+
+start "karuAPP - SIFEN" /D "%~dp0sifen-service" cmd /k "node server.js"
+
+Con eso, cada vez que corras iniciar.bat vas a tener TRES ventanas: Django,
+Print, y sifen-service — igual que las otras dos, en su propia consola para
+poder ver los logs si algo falla.
+
+Nota: esto asume que Node.js está instalado en la máquina donde corre
+KaruApp. Si tu instalador (instalar-nativo.bat) no lo verifica todavía, es
+lo mismo que hace ese script hoy con pywin32 — convendría agregar una
+verificación parecida ahí para cuando instales esto en la máquina de un
+restaurante real, no solo en la tuya de desarrollo.
