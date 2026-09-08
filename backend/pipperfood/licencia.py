@@ -129,7 +129,7 @@ class LicenseManager:
             return cache
         try:
             ult = datetime.fromisoformat(ultima)
-            offline_grace_dias = cache.get('offline_grace_dias', 7)
+            offline_grace_dias = cache.get('offline_grace_dias', 31)
             limite = ult + timedelta(days=offline_grace_dias)
             if datetime.now() > limite:
                 # No bloquear si la licencia pagada aún está vigente.
@@ -220,7 +220,7 @@ class LicenseManager:
                     'nombre': self.restaurant_name,
                     'online': True,
                     'bloqueado': data.get('bloqueado', False) or data.get('estado') == 'pendiente',
-                    'offline_grace_dias': data.get('offline_grace_dias', 3),
+                    'offline_grace_dias': data.get('offline_grace_dias', 31),
                     'paid_until': data.get('paid_until'),
                 }
             elif resp.status_code == 401:
@@ -303,7 +303,7 @@ class LicenseManager:
                 'nombre': server_data['nombre'],
                 'online': True,
                 'bloqueado': server_data['bloqueado'],
-                'offline_grace_dias': server_data.get('offline_grace_dias', 3),
+                'offline_grace_dias': server_data.get('offline_grace_dias', 31),
                 'paid_until': server_data.get('paid_until'),
             }
             self._save_cache(cache)
@@ -316,7 +316,7 @@ class LicenseManager:
                 return cache
             return self._check_offline_grace(cache)
 
-        return self._default_cache('🔴 Sin conexión - No se pudo verificar licencia', estado='gracia', dias=3)
+        return self._default_cache('🔴 Sin conexión - No se pudo verificar licencia', estado='gracia', dias=31)
 
     def get_status(self):
         return self.verificar()
