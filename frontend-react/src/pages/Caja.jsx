@@ -32,6 +32,23 @@ const DENOMINACIONES = [
   { valor: 50, label: '50 Gs' },
 ]
 
+const MONEDAS = [
+  { codigo: 'PYG', simbolo: 'Gs', nombre: 'Guaraní' },
+  { codigo: 'BRL', simbolo: 'R$', nombre: 'Real' },
+  { codigo: 'USD', simbolo: 'US$', nombre: 'Dólar' },
+  { codigo: 'ARS', simbolo: 'AR$', nombre: 'Peso Arg.' },
+]
+
+// Denominaciones típicas para el arqueo físico de cada moneda (valor en SI unidades)
+const DENOMINACIONES_POR_MONEDA = {
+  PYG: [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 100, 50],
+  BRL: [200, 100, 50, 20, 10, 5, 2, 1, 0.5, 0.25, 0.1, 0.05],
+  USD: [100, 50, 20, 10, 5, 2, 1, 0.25, 0.1, 0.05, 0.01],
+  ARS: [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 20, 10],
+}
+
+const MONEDAS_ARQUEO = MONEDAS.filter(m => m.codigo !== 'PYG')
+
 const s = (dm) => ({
   page: { minHeight: '100vh', background: dm ? '#121212' : '#f0f2f5', fontFamily: "'Roboto', sans-serif" },
   header: { background: '#1a1a1a', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,152,0,0.2)' },
@@ -80,6 +97,13 @@ export default function Caja() {
   const [metodoPago, setMetodoPago] = useState('efectivo')
   const [pagoMixto, setPagoMixto] = useState(false)
   const [montosPorMetodo, setMontosPorMetodo] = useState({ efectivo: '', tarjeta: '', transferencia: '' })
+  const [monedaMixto, setMonedaMixto] = useState({ efectivo: 'PYG', tarjeta: 'PYG', transferencia: 'PYG' })
+  const [tasas, setTasas] = useState({})
+  const [tasasError, setTasasError] = useState(false)
+  const [monedaPago, setMonedaPago] = useState('PYG')
+  const [showTasas, setShowTasas] = useState(false)
+  const [tasasEdit, setTasasEdit] = useState({})
+  const [tasasMsg, setTasasMsg] = useState('')
   const [propina, setPropina] = useState(0)
   const [propinaCustom, setPropinaCustom] = useState('')
   const [modalCobrar, setModalCobrar] = useState(false)
@@ -203,7 +227,14 @@ export default function Caja() {
 
   // Cierre
   const [showCierre, setShowCierre] = useState(false)
-  const [denominaciones, setDenominaciones] = useState(DENOMINACIONES.map(d => ({ ...d, cantidad: '' })))
+  const [monedaArqueo, setMonedaArqueo] = useState('PYG')
+  const [conteoPorMoneda, setConteoPorMoneda] = useState(() => {
+    const base = { PYG: DENOMINACIONES.map(d => ({ ...d, cantidad: '' })) }
+    MONEDAS_ARQUEO.forEach(m => {
+      base[m.codigo] = DENOMINACIONES_POR_MONEDA[m.codigo].map(v => ({ valor: v, label: String(v), cantidad: '' }))
+    })
+    return base
+  })
   const [obsCierre, setObsCierre] = useState('')
   const [resultadoCierre, setResultadoCierre] = useState(null)
   const [showCorteTicket, setShowCorteTicket] = useState(false)
@@ -305,8 +336,44 @@ export default function Caja() {
     } catch {}
   }
 
+  const cargarTasas = async () => {
+    try {
+      const res = await fetch(`${API_URL}/caja/tasas-cambio`)
+      const data = await res.json()
+      if (data.success) {
+        const t = { PYG: 1 }
+        ;(data.tasas || []).forEach(x => { t[x.moneda] = x.tasa })
+        setTasas(t)
+        setTasasError(false)
+      } else setTasasError(true)
+    } catch { setTasasError(true) }
+  }
+
+  const abrirEditarTasas = () => {
+    setTasasEdit({ BRL: tasas.BRL ?? '', USD: tasas.USD ?? '', ARS: tasas.ARS ?? '' })
+    setTasasMsg('')
+    setShowTasas(true)
+  }
+
+  const guardarTasasRapidas = async () => {
+    setTasasMsg('')
+    const body = {}
+    MONEDAS.filter(m => m.codigo !== 'PYG').forEach(m => {
+      body[m.codigo] = parseFloat(tasasEdit[m.codigo]) || 0
+    })
+    try {
+      const res = await fetch(`${API_URL}/caja/tasas-cambio/actualizar`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      const data = await res.json()
+      if (data.success) { cargarTasas(); setShowTasas(false) }
+      else setTasasMsg(data.error || 'Error al guardar')
+    } catch { setTasasMsg('Error de conexión') }
+  }
+
   useEffect(() => {
-    initDarkMode(); verificarSesion(); cargarDatosEmpresa(); cargarSifenStatus()
+    initDarkMode(); verificarSesion(); cargarDatosEmpresa(); cargarSifenStatus(); cargarTasas()
   }, [])
   useEffect(() => {
     const t = setInterval(() => setHora(new Date()), 1000)
@@ -330,6 +397,28 @@ export default function Caja() {
     setter(e.target.value.replace(/[^0-9]/g, ''))
   }
 
+  // Formatea para el pago mixto: separador de miles y decimales solo para moneda extranjera
+  const formatearNumeroMixto = (val, moneda) => {
+    if (!val && val !== 0) return ''
+    const num = parseFloat(val)
+    if (isNaN(num)) return ''
+    const esGs = !moneda || moneda === 'PYG'
+    return num.toLocaleString('es-PY', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: esGs ? 0 : 2,
+    })
+  }
+
+  // Versión con moneda: admite decimales solo para divisas (R$/US$/AR$)
+  const formatearNumeroMoneda = (val, moneda) => formatearNumeroMixto(val, moneda)
+  const handleMontoChangeMoneda = (setter, moneda) => (e) => {
+    const esGs = !moneda || moneda === 'PYG'
+    let v = e.target.value.replace(/\./g, '').replace(/,/g, '.')
+    if (esGs) v = v.replace(/[^0-9]/g, '')
+    const num = parseFloat(v)
+    setter(isNaN(num) ? '' : String(num))
+  }
+
   const calcularTotal = () => {
     if (!pedidosMesa || pedidosMesa.length === 0) return 0
     return redondearGs(pedidosMesa.reduce((sum, p) => sum + parseFloat(p.total || 0), 0))
@@ -350,24 +439,85 @@ export default function Caja() {
 
   const totalConPropina = calcularTotal() + calcularPropina()
 
+  // ====================== MONEDAS / CONVERSION ======================
+  const convertir = (monto, moneda) => {
+    const m = parseFloat(monto) || 0
+    if (!moneda || moneda === 'PYG') return Math.round(m)
+    const t = tasas[moneda] || 0
+    return Math.round(m * t)
+  }
+  const simboloMoneda = (codigo) => MONEDAS.find(m => m.codigo === codigo)?.simbolo || codigo
+  const formatearMonto = (monto, moneda, decimales = 2) => {
+    const m = parseFloat(monto) || 0
+    if (!moneda || moneda === 'PYG') return formatGuarani(Math.round(m))
+    return `${moneda} ${m.toLocaleString('es-PY', { minimumFractionDigits: m % 1 !== 0 ? decimales : 0, maximumFractionDigits: decimales })}`
+  }
+
+  // Vuelto en todas las divisas: Gs (exacto) y su equivalente en R$/US$/AR$
+  const renderVueltoDivisas = (vueltoGs) => {
+    if (!vueltoGs || vueltoGs <= 0) return null
+    return (
+      <div style={{ marginTop: '8px', padding: '10px', background: darkMode ? '#2f2f2f' : '#fff8e1', borderRadius: '10px', border: '1px solid rgba(255,152,0,0.25)' }}>
+        <p style={{ color: darkMode ? '#bbb' : '#8a6d1a', fontSize: '12px', fontWeight: '600', margin: '0 0 6px' }}>
+          Vuelto en divisas — elija en qué entregarlo:
+        </p>
+        {MONEDAS.map(m => {
+          const v = m.codigo === 'PYG' ? vueltoGs : (tasas[m.codigo] ? vueltoGs / tasas[m.codigo] : 0)
+          if (!v || v <= 0) return null
+          const texto = m.codigo === 'PYG'
+            ? formatGuarani(Math.round(v))
+            : `${m.simbolo} ${v.toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          return (
+            <p key={m.codigo} style={{ margin: '2px 0', fontSize: '14px', color: darkMode ? '#eee' : '#333', fontWeight: '700' }}>
+              {m.nombre}: <span style={{ color: '#4CAF50' }}>{texto}</span>
+            </p>
+          )
+        })}
+      </div>
+    )
+  }
+
   // ====================== PAGO MIXTO (dividir) ======================
   const montosMixto = ['efectivo', 'tarjeta', 'transferencia'].map(k => ({
     metodo: k,
-    monto: parseFloat(montosPorMetodo[k]) || 0
+    moneda: monedaMixto[k] || 'PYG',
+    monto: parseFloat(montosPorMetodo[k]) || 0,
+    monto_pyg: convertir(montosPorMetodo[k], monedaMixto[k] || 'PYG'),
+    tasa: (monedaMixto[k] || 'PYG') === 'PYG' ? 1 : (tasas[monedaMixto[k]] || 0),
   }))
-  const sumaMixto = montosMixto.reduce((s, m) => s + m.monto, 0)
+  const sumaMixto = montosMixto.reduce((s, m) => s + m.monto_pyg, 0)
   const metodosMixtoActivos = montosMixto.filter(m => m.monto > 0)
+
   const esMixto = pagoMixto && metodosMixtoActivos.length >= 1
   const faltanteMixto = esMixto ? (totalConPropina - sumaMixto) : 0
   const diferenciaMixto = Math.abs(sumaMixto - totalConPropina)
 
   const onMontoMetodoChange = (metodo) => (e) => {
-    const valor = e.target.value.replace(/[^0-9]/g, '')
-    setMontosPorMetodo(prev => ({ ...prev, [metodo]: valor }))
+    const limpio = e.target.value.replace(/\./g, '').replace(/,/g, '.')
+    const num = parseFloat(limpio)
+    setMontosPorMetodo(prev => ({ ...prev, [metodo]: isNaN(num) ? '' : String(num) }))
+  }
+
+  const onMonedaMixtoChange = (metodo, moneda) => {
+    setMonedaMixto(prev => ({ ...prev, [metodo]: moneda }))
+  }
+
+  // Rellena automáticamente el monto que falta (restante) en la tarjeta u otro método vacío
+  const autocompletarPagoMixto = () => {
+    const restante = totalConPropina - sumaMixto
+    if (restante <= 10) return
+    const preferencia = ['tarjeta', 'transferencia', 'efectivo']
+    let target = preferencia.find(k => (parseFloat(montosPorMetodo[k]) || 0) <= 0) || 'tarjeta'
+    const moneda = monedaMixto[target] || 'PYG'
+    if (moneda !== 'PYG' && !tasas[moneda]) { alert(`Tasa de ${moneda} no disponible para completar el monto`); return }
+    const tasa = moneda === 'PYG' ? 1 : tasas[moneda]
+    let monto = moneda === 'PYG' ? restante : Math.round((restante / tasa) * 100) / 100
+    setMontosPorMetodo(prev => ({ ...prev, [target]: String(monto) }))
   }
 
   const limpiarPagoMixto = () => {
     setMontosPorMetodo({ efectivo: '', tarjeta: '', transferencia: '' })
+    setMonedaMixto({ efectivo: 'PYG', tarjeta: 'PYG', transferencia: 'PYG' })
   }
 
   // ====================== SELECCIONAR MESA Y COBRAR ======================
@@ -421,6 +571,7 @@ export default function Caja() {
     else if (metodoPago === 'transferencia' && !comprobanteNro) { alert('Ingrese el N° de comprobante de la transferencia'); return }
 
     setCargando(true)
+    const monedaEfectivo = monedaPago || 'PYG'
     const body = {
       metodo_pago: esMixto ? 'mixto' : metodoPago,
       propina: calcularPropina(),
@@ -430,15 +581,27 @@ export default function Caja() {
       cliente_nombre: clienteDatos.nombre || 'Consumidor Final',
       generar_factura: generarFactura,
       monto_recibido: !esMixto && metodoPago === 'efectivo' ? parseFloat(montoRecibido) || 0 : 0,
+      moneda: !esMixto && metodoPago === 'efectivo' ? monedaEfectivo : 'PYG',
       usuario_id: session?.usuario_id,
     }
     if (esMixto) {
       body.pagos = metodosMixtoActivos.map(p => ({
         metodo: p.metodo,
         monto: p.monto,
-        moneda: 'PYG',
-        monto_pyg: p.monto
+        moneda: p.moneda,
+        monto_pyg: p.monto_pyg,
+        tasa: p.tasa,
       }))
+    } else if (metodoPago === 'efectivo') {
+      // Enviamos el detalle también para pago simple: el ticket y el arqueo
+      // saben en qué moneda y a qué tasa se cobró.
+      body.pagos = [{
+        metodo: 'efectivo',
+        monto: parseFloat(montoRecibido) || 0,
+        moneda: monedaEfectivo,
+        monto_pyg: convertir(montoRecibido, monedaEfectivo),
+        tasa: monedaEfectivo === 'PYG' ? 1 : (tasas[monedaEfectivo] || 0),
+      }]
     } else if (metodoPago === 'transferencia') {
       body.comprobante_nro = comprobanteNro
     }
@@ -473,7 +636,7 @@ export default function Caja() {
         numero_orden: esDelivery ? (deliveryPedidoSeleccionado.numero_orden || deliveryPedidoSeleccionado.id) : (data.numero_factura || 1),
         fecha: new Date(), items: itemsCompletos,
         total: totalFinal,
-        detalle_pagos: esMixto ? (body.pagos || []) : (data.detalle_pagos || []),
+        detalle_pagos: body.pagos || [],
         metodo_pago: esMixto ? 'mixto' : metodoPago,
         tipo_iva: tipoIva,
         propina: calcularPropina(),
@@ -538,16 +701,32 @@ export default function Caja() {
 
   // ====================== ARQUEO Y CIERRE ======================
 
-  const totalContado = () => denominaciones.reduce((sum, d) => sum + (parseInt(d.valor) * (parseInt(d.cantidad) || 0)), 0)
+  const setConteo = (moneda, idx, cantidad) => {
+    setConteoPorMoneda(prev => {
+      const lista = (prev[moneda] || []).map((d, i) => i === idx ? { ...d, cantidad } : d)
+      return { ...prev, [moneda]: lista }
+    })
+  }
+  const totalContado = (moneda = 'PYG') => (conteoPorMoneda[moneda] || []).reduce((sum, d) => sum + ((parseFloat(d.valor) || 0) * (parseInt(d.cantidad) || 0)), 0)
+  const arqueoTotalGs = Math.round(
+    totalContado('PYG') +
+    MONEDAS_ARQUEO.reduce((s, m) => s + (totalContado(m.codigo) * (tasas[m.codigo] || 0)), 0)
+  )
 
   const cerrarCaja = async () => {
+    const denominacionesSend = []
+    MONEDAS.forEach(m => {
+      (conteoPorMoneda[m.codigo] || []).forEach(d => {
+        if (d.cantidad) denominacionesSend.push({ moneda: m.codigo, valor: d.valor, cantidad: parseInt(d.cantidad) })
+      })
+    })
     try {
       const res = await fetch(`${API_URL}/caja/cierre`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          denominaciones: denominaciones.filter(d => d.cantidad),
+          denominaciones: denominacionesSend,
           observaciones: obsCierre,
-      usuario_id: session?.usuario_id,
+          usuario_id: session?.usuario_id,
         })
       })
       const data = await res.json()
@@ -619,6 +798,14 @@ export default function Caja() {
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <span style={{ color: '#aaa', fontSize: '12px' }}>Fondo: {formatGuarani(sTotales.fondo_inicial || 0)}</span>
+          <span style={{ color: '#555', fontSize: '11px' }}>|</span>
+          {MONEDAS_ARQUEO.map(m => (
+            <button key={m.codigo} onClick={abrirEditarTasas} title="Editar tasas del día"
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', background: 'rgba(255,152,0,0.15)', color: '#FFB74D', border: '1px solid rgba(255,152,0,0.4)', cursor: 'pointer' }}>
+              <span>{m.simbolo}</span>
+              <span>{tasas[m.codigo] || 0}</span>
+            </button>
+          ))}
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {sifenStatus?.sifen_habilitado && (
@@ -690,7 +877,13 @@ export default function Caja() {
             style={{ ...st.btnPrimary, background: 'linear-gradient(135deg, #E53935, #C62828)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="material-icons" style={{ fontSize: '18px' }}>remove_circle</span> Retiro
           </button>
-          <button onClick={() => { setShowCierre(true); setDenominaciones(DENOMINACIONES.map(d => ({ ...d, cantidad: '' }))); setObsCierre('') }}
+          <button onClick={() => { setShowCierre(true); setMonedaArqueo('PYG'); setConteoPorMoneda(() => {
+            const base = { PYG: DENOMINACIONES.map(d => ({ ...d, cantidad: '' })) }
+            MONEDAS_ARQUEO.forEach(m => {
+              base[m.codigo] = DENOMINACIONES_POR_MONEDA[m.codigo].map(v => ({ valor: v, label: String(v), cantidad: '' }))
+            })
+            return base
+          }); setObsCierre('') }}
             style={{ ...st.btnPrimary, background: 'linear-gradient(135deg, #E53935, #B71C1C)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="material-icons" style={{ fontSize: '18px' }}>logout</span> Cerrar Caja
           </button>
@@ -936,17 +1129,33 @@ export default function Caja() {
                       <div key={mm.clave} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                         <span className="material-icons" style={{ color: mm.color, fontSize: '20px' }}>{mm.icono}</span>
                         <span style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', width: '170px' }}>{mm.label}</span>
-                        <input type="text" inputMode="decimal" placeholder="0" value={montosPorMetodo[mm.clave]}
+                        <input type="text" inputMode="decimal" placeholder="0" value={formatearNumeroMixto(montosPorMetodo[mm.clave], monedaMixto[mm.clave] || 'PYG')}
                           onChange={onMontoMetodoChange(mm.clave)}
-                          style={{ ...st.input, width: '130px', textAlign: 'center', fontWeight: '700', fontSize: '16px', padding: '9px' }} />
-                        <span style={{ color: darkMode ? '#aaa' : '#888', fontSize: '12px', minWidth: '90px' }}>
-                          = {formatGuarani(parseFloat(montosPorMetodo[mm.clave]) || 0)}
+                          style={{ ...st.input, width: '120px', textAlign: 'center', fontWeight: '700', fontSize: '16px', padding: '9px' }} />
+                        <select value={monedaMixto[mm.clave] || 'PYG'} onChange={e => onMonedaMixtoChange(mm.clave, e.target.value)}
+                          style={{ padding: '8px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.1)', background: darkMode ? '#2a2a2a' : 'white', color: darkMode ? '#ccc' : '#333', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
+                          {MONEDAS.map(m => <option key={m.codigo} value={m.codigo}>{m.simbolo}</option>)}
+                        </select>
+                        <span style={{ color: darkMode ? '#aaa' : '#888', fontSize: '12px', minWidth: '70px', whiteSpace: 'nowrap' }}>
+                          = {formatGuarani(convertir(montosPorMetodo[mm.clave], monedaMixto[mm.clave] || 'PYG'))}
                         </span>
                       </div>
                     ))}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,152,0,0.3)', paddingTop: '8px' }}>
                       <span style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600' }}>Total dividido</span>
                       <span style={{ color: '#FF9800', fontSize: '15px', fontWeight: '700' }}>{formatGuarani(sumaMixto)}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <button onClick={autocompletarPagoMixto}
+                        disabled={(totalConPropina - sumaMixto) <= 10}
+                        style={{
+                          ...st.btn, flex: 1, padding: '7px 10px', fontSize: '13px', fontWeight: '700',
+                          background: darkMode ? '#3a3a3a' : '#e8e8e8', color: '#FF9800',
+                          border: '1px solid rgba(255,152,0,0.4)', cursor: (totalConPropina - sumaMixto) <= 10 ? 'not-allowed' : 'pointer',
+                          opacity: (totalConPropina - sumaMixto) <= 10 ? 0.45 : 1,
+                        }}>
+                        ⚡ Autocompletar monto
+                      </button>
                     </div>
                     {metodosMixtoActivos.length >= 1 && (
                       <p style={{ fontSize: '12px', fontWeight: '600', margin: '8px 0 0', color: diferenciaMixto <= 10 ? '#4CAF50' : '#E53935' }}>
@@ -964,19 +1173,48 @@ export default function Caja() {
             {/* Monto Recibido + Vuelto (solo efectivo) */}
             {!pagoMixto && metodoPago === 'efectivo' && (
               <div style={{ marginBottom: '16px' }}>
-                <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 8px' }}>Monto Recibido</p>
-                <input type="text" inputMode="numeric" placeholder="Ingrese el monto recibido" value={formatearNumero(montoRecibido)}
-                  onChange={handleMontoChange(setMontoRecibido)}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 8px' }}>
+                  <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0' }}>Monto Recibido</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '12px', color: darkMode ? '#999' : '#777' }}>Moneda:</span>
+                    <select value={monedaPago} onChange={e => setMonedaPago(e.target.value)}
+                      style={{ padding: '6px 8px', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.1)', background: darkMode ? '#2a2a2a' : 'white', color: darkMode ? '#ccc' : '#333', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}>
+                      {MONEDAS.map(m => <option key={m.codigo} value={m.codigo}>{m.simbolo} - {m.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <input type="text" inputMode="decimal" placeholder={`Ingrese el monto recibido (${simboloMoneda(monedaPago)})`} value={formatearNumeroMoneda(montoRecibido, monedaPago)}
+                  onChange={handleMontoChangeMoneda(setMontoRecibido, monedaPago)}
                   style={{ ...st.input, fontSize: '20px', fontWeight: '700', textAlign: 'center', padding: '14px' }} />
                 {parseFloat(montoRecibido) > 0 && (
                   <div style={{ textAlign: 'center', marginTop: '8px' }}>
-                    {parseFloat(montoRecibido) >= totalConPropina ? (
-                      <p style={{ color: '#4CAF50', fontSize: '14px', fontWeight: '700' }}>
-                        Vuelto: {formatGuarani(parseFloat(montoRecibido) - totalConPropina)}
+                    <p style={{ color: darkMode ? '#aaa' : '#777', fontSize: '12px' }}>
+                      {formatearMonto(parseFloat(montoRecibido), monedaPago)} = {formatGuarani(convertir(montoRecibido, monedaPago))} Gs
+                      {monedaPago !== 'PYG' && ` (TC ${tasas[monedaPago] || 0})`}
+                    </p>
+                    {monedaPago !== 'PYG' && !tasas[monedaPago] && (
+                      <p style={{ color: '#E53935', fontSize: '12px', margin: '4px 0' }}>
+                        ⚠ Tasa de {simboloMoneda(monedaPago)} no disponible. Fíjela en Configuración.
+                        {tasasError && (
+                          <button onClick={cargarTasas} style={{ marginLeft: '8px', padding: '2px 10px', border: 'none', borderRadius: '6px', background: '#E53935', color: 'white', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+                            Reintentar
+                          </button>
+                        )}
                       </p>
+                    )}
+                    {convertir(montoRecibido, monedaPago) >= totalConPropina ? (
+                      <>
+                        <p style={{ color: '#4CAF50', fontSize: '15px', fontWeight: '700', margin: '8px 0 4px' }}>
+                          Vuelto: {formatGuarani(convertir(montoRecibido, monedaPago) - totalConPropina)} Gs
+                        </p>
+                        {renderVueltoDivisas(convertir(montoRecibido, monedaPago) - totalConPropina)}
+                      </>
                     ) : (
                       <p style={{ color: '#E53935', fontSize: '14px', fontWeight: '600' }}>
-                        Faltan: {formatGuarani(totalConPropina - parseFloat(montoRecibido))}
+                        Faltan: {formatGuarani(totalConPropina - convertir(montoRecibido, monedaPago))} Gs
+                        {monedaPago !== 'PYG' && tasas[monedaPago]
+                          ? ` (≈ ${simboloMoneda(monedaPago)} ${((totalConPropina - convertir(montoRecibido, monedaPago)) / tasas[monedaPago]).toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+                          : null}
                       </p>
                     )}
                   </div>
@@ -1065,6 +1303,33 @@ export default function Caja() {
         </div>
       )}
 
+      {/* ==================== MODAL EDITAR TASAS ==================== */}
+      {showTasas && (
+        <div style={st.overlay}>
+          <div style={st.modal} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: darkMode ? '#fff' : '#333', margin: '0 0 12px', textAlign: 'center' }}>Tipos de Cambio del Día</h3>
+            <p style={{ color: darkMode ? '#aaa' : '#888', fontSize: '12px', margin: '0 0 14px', textAlign: 'center' }}>
+              1 unidad = X Guaraníes · El vuelto siempre se entrega en Gs
+            </p>
+            {MONEDAS.filter(m => m.codigo !== 'PYG').map(m => (
+              <div key={m.codigo} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ width: '70px', fontWeight: '700', fontSize: '14px', color: darkMode ? '#fff' : '#333' }}>{m.simbolo}</span>
+                <input type="number" min="0" step="0.01" value={tasasEdit[m.codigo] ?? ''}
+                  onChange={e => setTasasEdit(prev => ({ ...prev, [m.codigo]: e.target.value }))}
+                  placeholder="0"
+                  style={{ ...st.input, width: '130px', textAlign: 'right', fontWeight: '700' }} />
+                <span style={{ color: darkMode ? '#999' : '#777', fontSize: '12px' }}>Gs</span>
+              </div>
+            ))}
+            {tasasMsg && <p style={{ color: '#E53935', fontSize: '12px', textAlign: 'center' }}>{tasasMsg}</p>}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowTasas(false)} style={{ ...st.btn, background: darkMode ? '#3a3a3a' : '#f0f0f0', color: darkMode ? '#ccc' : '#555', flex: 1 }}>Cancelar</button>
+              <button onClick={guardarTasasRapidas} style={{ ...st.btnPrimary, flex: 2 }}>GUARDAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ==================== MODAL CONFIRMAR COBRO ==================== */}
       {modalConfirmarCobro && (
         <div style={st.overlay}>
@@ -1078,18 +1343,29 @@ export default function Caja() {
                   <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '13px', fontWeight: '600', margin: '0 0 6px' }}>Pago dividido:</p>
                   {metodosMixtoActivos.map(m => (
                     <p key={m.metodo} style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '2px 0' }}>
-                      {m.metodo === 'efectivo' ? 'Efectivo' : m.metodo === 'tarjeta' ? 'Tarjeta (Débito/Crédito)' : 'Transferencia'}: <strong>{formatGuarani(m.monto)}</strong>
+                      {m.metodo === 'efectivo' ? 'Efectivo' : m.metodo === 'tarjeta' ? 'Tarjeta (Débito/Crédito)' : 'Transferencia'}: <strong>{formatearMonto(m.monto, m.moneda)}</strong>
+                      <span style={{ fontSize: '12px', color: darkMode ? '#999' : '#777' }}>
+                        {' '}= {formatGuarani(m.monto_pyg)} Gs{m.moneda !== 'PYG' && ` (TC ${m.tasa})`}
+                      </span>
                     </p>
                   ))}
                 </div>
               ) : (
                 <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', margin: '4px 0' }}>Método: {metodosApi.find(m => m.nombre === metodoPago)?.etiqueta || metodoPago}</p>
               )}
-              {!esMixto && parseFloat(montoRecibido) > 0 && <p style={{ color: '#4CAF50', fontSize: '14px', margin: '4px 0' }}>Recibido: {formatGuarani(parseFloat(montoRecibido))}</p>}
-              {!esMixto && parseFloat(montoRecibido) > totalConPropina && (
-                <p style={{ color: '#4CAF50', fontSize: '16px', fontWeight: '700', margin: '4px 0', textAlign: 'center' }}>
-                  Vuelto a entregar: {formatGuarani(parseFloat(montoRecibido) - totalConPropina)}
+              {!esMixto && parseFloat(montoRecibido) > 0 && (
+                <p style={{ color: '#4CAF50', fontSize: '14px', margin: '4px 0' }}>
+                  Recibido: {formatearMonto(parseFloat(montoRecibido), monedaPago)}
+                  {' '}= {formatGuarani(convertir(montoRecibido, monedaPago))} Gs
                 </p>
+              )}
+              {!esMixto && convertir(montoRecibido, monedaPago) > totalConPropina && (
+                <>
+                  <p style={{ color: '#4CAF50', fontSize: '16px', fontWeight: '700', margin: '8px 0 4px', textAlign: 'center' }}>
+                    Vuelto a entregar: {formatGuarani(convertir(montoRecibido, monedaPago) - totalConPropina)} Gs
+                  </p>
+                  {renderVueltoDivisas(convertir(montoRecibido, monedaPago) - totalConPropina)}
+                </>
               )}
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -1158,27 +1434,63 @@ export default function Caja() {
       {/* ==================== MODAL CIERRE DE CAJA ==================== */}
       {showCierre && (
         <div style={st.overlay} onClick={() => setShowCierre(false)}>
-          <div style={{ ...st.modalLg, maxWidth: '500px' }} onClick={e => e.stopPropagation()}>
+          <div style={{ ...st.modalLg, maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ color: darkMode ? '#fff' : '#333', margin: '0 0 16px', textAlign: 'center' }}>
               🛑 Cierre de Caja
             </h3>
 
-            {/* Denomminaciones */}
-            <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', fontWeight: '600', margin: '0 0 8px' }}>Conteo de Billetes / Monedas</p>
-            <div style={{ marginBottom: '16px' }}>
-              {denominaciones.map((d, idx) => (
-                <div key={d.valor} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ color: darkMode ? '#ccc' : '#555', width: '90px', fontSize: '13px', textAlign: 'right' }}>{d.label}</span>
+            {/* Tabs por moneda */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', marginBottom: '12px' }}>
+              {MONEDAS.map(m => (
+                <button key={m.codigo} onClick={() => setMonedaArqueo(m.codigo)}
+                  style={{
+                    padding: '7px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '700',
+                    border: monedaArqueo === m.codigo ? '2px solid #FF9800' : '2px solid transparent',
+                    background: monedaArqueo === m.codigo ? (darkMode ? '#3a3a3a' : '#fff') : (darkMode ? '#2a2a2a' : '#f5f5f5'),
+                    color: darkMode ? '#ccc' : '#555',
+                  }}>
+                  {m.simbolo}{m.codigo !== 'PYG' && ` (TC ${tasas[m.codigo] || 0})`}
+                </button>
+              ))}
+            </div>
+
+            {/* Denominaciones de la moneda activa */}
+            <p style={{ color: darkMode ? '#ccc' : '#555', fontSize: '14px', fontWeight: '600', margin: '0 0 8px' }}>
+              Conteo de Billetes / Monedas — {simboloMoneda(monedaArqueo)}
+            </p>
+            <div style={{ marginBottom: '16px', maxHeight: '340px', overflow: 'auto' }}>
+              {monedaArqueo === 'PYG' && (
+                <p style={{ color: darkMode ? '#999' : '#888', fontSize: '12px', margin: '0 0 8px' }}>
+                  El efectivo siempre se cuenta en Gs, aunque se haya cobrado en otra moneda (el vuelto se entrega en Gs).
+                </p>
+              )}
+              {(conteoPorMoneda[monedaArqueo] || []).map((d, idx) => (
+                <div key={`${monedaArqueo}-${d.valor}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ color: darkMode ? '#ccc' : '#555', width: '100px', fontSize: '13px', textAlign: 'right' }}>
+                    {monedaArqueo === 'PYG' ? d.label : formatearMonto(d.valor, monedaArqueo)}
+                  </span>
                   <span style={{ color: '#666', fontSize: '13px' }}>×</span>
                   <input type="number" min="0" placeholder="0" value={d.cantidad}
-                    onChange={e => { const newD = [...denominaciones]; newD[idx] = { ...newD[idx], cantidad: e.target.value }; setDenominaciones(newD) }}
+                    onChange={e => setConteo(monedaArqueo, idx, e.target.value)}
                     style={{ ...st.input, width: '60px', padding: '6px', fontSize: '13px', textAlign: 'center' }} />
-                  <span style={{ color: darkMode ? '#aaa' : '#888', fontSize: '12px' }}>= {formatGuarani((parseInt(d.valor) * (parseInt(d.cantidad) || 0)))}</span>
+                  <span style={{ color: darkMode ? '#aaa' : '#888', fontSize: '12px' }}>
+                    {monedaArqueo === 'PYG'
+                      ? `= ${formatGuarani((parseFloat(d.valor) || 0) * (parseInt(d.cantidad) || 0))}`
+                      : `= ${formatearMonto((parseFloat(d.valor) || 0) * (parseInt(d.cantidad) || 0), monedaArqueo)} (${formatGuarani(((parseFloat(d.valor) || 0) * (parseInt(d.cantidad) || 0)) * (tasas[monedaArqueo] || 0))} Gs)`}
+                  </span>
                 </div>
               ))}
-              <p style={{ textAlign: 'right', color: '#FF9800', fontSize: '16px', fontWeight: '700', margin: '8px 0 0' }}>
-                Total: {formatGuarani(totalContado())}
+              <p style={{ textAlign: 'right', color: '#FF9800', fontSize: '15px', fontWeight: '700', margin: '8px 0 0' }}>
+                {monedaArqueo === 'PYG'
+                  ? `Total Gs: ${formatGuarani(totalContado('PYG'))}`
+                  : `Total: ${formatearMonto(totalContado(monedaArqueo), monedaArqueo)} = ${formatGuarani(totalContado(monedaArqueo) * (tasas[monedaArqueo] || 0))} Gs`}
               </p>
+            </div>
+
+            {/* Total general en Gs */}
+            <div style={{ background: 'linear-gradient(135deg, #FF9800, #F57C00)', borderRadius: '10px', padding: '12px', marginBottom: '16px', textAlign: 'center' }}>
+              <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '12px', fontWeight: '600' }}>TOTAL CONTADO</span>
+              <div style={{ color: 'white', fontSize: '22px', fontWeight: '800' }}>{formatGuarani(arqueoTotalGs)} Gs</div>
             </div>
 
             {/* Observaciones */}
@@ -1190,8 +1502,8 @@ export default function Caja() {
 
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => setShowCierre(false)} style={{ ...st.btn, background: darkMode ? '#3a3a3a' : '#f0f0f0', color: darkMode ? '#ccc' : '#555', flex: 1 }}>Cancelar</button>
-              <button onClick={cerrarCaja} disabled={totalContado() === 0}
-                style={{ ...st.btnPrimary, flex: 2, opacity: totalContado() === 0 ? 0.5 : 1 }}>
+              <button onClick={cerrarCaja} disabled={arqueoTotalGs === 0}
+                style={{ ...st.btnPrimary, flex: 2, opacity: arqueoTotalGs === 0 ? 0.5 : 1 }}>
                 CERRAR CAJA
               </button>
             </div>
@@ -1235,6 +1547,21 @@ export default function Caja() {
                 </span>
               </div>
             </div>
+            {resultadoCierre.totales_por_moneda && Object.keys(resultadoCierre.totales_por_moneda).length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <p style={{ fontSize: '11px', fontWeight: 'bold', margin: '0 0 4px', color: '#000' }}>ARQUEO FÍSICO:</p>
+                {Object.entries(resultadoCierre.totales_por_moneda).map(([mon, monto]) => (
+                  <div key={mon} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 'bold', color: '#000' }}>
+                    <span>{mon}:</span>
+                    <span>
+                      {mon === 'PYG'
+                        ? `${formatGuarani(monto)} Gs`
+                        : `${formatearMonto(monto, mon)} ≈ ${formatGuarani(monto * (resultadoCierre.tasas_aplicadas?.[mon] || 0))} Gs`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             {resultadoCierre.observaciones && <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#000', textAlign: 'center', margin: '0 0 12px' }}>Obs: {resultadoCierre.observaciones}</p>}
             <div style={{ display: 'flex', gap: '10px' }}>
               <button

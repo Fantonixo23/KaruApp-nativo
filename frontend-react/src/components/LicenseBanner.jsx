@@ -38,7 +38,7 @@ export default function LicenseBanner() {
 
   useEffect(() => {
     verificarLicencia()
-    const interval = setInterval(verificarLicencia, 12 * 60 * 60 * 1000)
+    const interval = setInterval(verificarLicencia, 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
@@ -66,6 +66,16 @@ export default function LicenseBanner() {
 
   const bloqueada = license.estado === 'bloqueada' || license.bloqueado
 
+  const obtenerEstadoVisual = () => {
+    if (license.estado === 'gracia') return 'gracia'
+    const dias = license.dias_restantes
+    if (typeof dias !== 'number' || dias === 999) return license.estado
+    if (dias <= 1) return 'por_vencer_1'
+    if (dias <= 3) return 'por_vencer_3'
+    if (dias <= 5) return 'por_vencer_5'
+    return license.estado
+  }
+
   if (bloqueada) {
     return (
       <div style={{
@@ -90,6 +100,17 @@ export default function LicenseBanner() {
           <div style={{ marginTop: '30px', padding: '20px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px' }}>
             <p style={{ fontSize: '14px', margin: '5px 0' }}>📧 Contacte a karuAPP para renovar</p>
             <p style={{ fontSize: '14px', margin: '5px 0' }}>📱 Solicite renovación de licencia</p>
+            <button
+              onClick={verificarLicencia}
+              style={{
+                marginTop: '16px', padding: '12px 24px', fontSize: '16px',
+                fontWeight: '700', border: 'none', borderRadius: '10px',
+                background: '#fff', color: '#b71c1c', cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+              }}
+            >
+              🔄 Reintentar (si tenés internet)
+            </button>
           </div>
         </div>
         <p style={{ marginTop: '20px', fontSize: '12px', opacity: 0.5 }}>
@@ -99,10 +120,10 @@ export default function LicenseBanner() {
     )
   }
 
-  const estilo = getEstilo(license.estado)
+  const estilo = getEstilo(obtenerEstadoVisual())
   if (!estilo) return null
 
-  const esCritico = license.estado === 'por_vencer_1'
+  const esCritico = obtenerEstadoVisual() === 'por_vencer_1'
 
   if (minimized) {
     return (

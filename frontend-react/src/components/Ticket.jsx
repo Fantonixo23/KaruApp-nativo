@@ -179,12 +179,27 @@ export const TicketFactura = ({ pedido, negocio, cliente, onClose, numero, vuelt
               <div className="print-divider" style={styles.divider} />
               <div style={styles.totals}>
                 <p style={{ ...styles.label, textAlign: 'center', marginBottom: '4px' }}>FORMA DE PAGO</p>
-                {detallePagos.map((p, idx) => (
-                  <div key={idx} style={styles.row}>
-                    <span>{p.metodo} ({p.moneda}):</span>
-                    <span>{formatGuarani(p.monto_pyg)}</span>
+                {detallePagos.map((p, idx) => {
+                const monedaExt = p.moneda && p.moneda !== 'PYG'
+                return (
+                  <div key={idx}>
+                    {monedaExt && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#000', margin: '1px 0' }}>
+                        <span>Equiv. Gs{montoRecibido && ` · TC: ${p.tasa}`}:</span>
+                        <span>{formatGuarani(p.monto_pyg || p.monto || 0)}</span>
+                      </div>
+                    )}
+                    <div style={styles.row}>
+                      <span>{p.metodo}{monedaExt ? ` (${p.moneda})` : ''}:</span>
+                      <span>
+                        {monedaExt
+                          ? `${Number(p.monto || 0).toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : formatGuarani(p.monto_pyg ?? p.monto)}
+                      </span>
+                    </div>
                   </div>
-                ))}
+                )
+              })}
               </div>
             </>
           )}

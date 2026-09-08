@@ -78,10 +78,15 @@ export default function Configuracion() {
   const [backupLoading, setBackupLoading] = useState(false)
   const [backupMsg, setBackupMsg] = useState('')
 
+  const [tasasCambio, setTasasCambio] = useState([])
+  const [tasasMsg, setTasasMsg] = useState('')
+  const [tasasGuardando, setTasasGuardando] = useState(false)
+
   useEffect(() => {
     cargarDatos()
     cargarMetodos()
     cargarBackupStatus()
+    cargarTasas()
   }, [])
 
   useEffect(() => {
@@ -104,6 +109,41 @@ export default function Configuracion() {
       const data = await res.json()
       if (data.ok) setBackupInfo(data)
     } catch {}
+  }
+
+  const cargarTasas = async () => {
+    try {
+      const res = await fetch(`${API_URL}/caja/tasas-cambio`)
+      const data = await res.json()
+      if (data.success) setTasasCambio(data.tasas || [])
+    } catch {}
+  }
+
+  const setTasa = (moneda, valor) => {
+    setTasasCambio(prev => prev.map(t => t.moneda === moneda ? { ...t, tasa: valor } : t))
+  }
+
+  const guardarTasas = async () => {
+    setTasasGuardando(true)
+    setTasasMsg('')
+    const body = {}
+    tasasCambio.filter(t => t.moneda !== 'PYG').forEach(t => {
+      body[t.moneda] = parseFloat(t.tasa) || 0
+    })
+    try {
+      const res = await fetch(`${API_URL}/caja/tasas-cambio/actualizar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      const data = await res.json()
+      if (data.success) setTasasMsg('✔ Tasas de cambio guardadas')
+      else setTasasMsg('Error: ' + (data.error || 'desconocido'))
+    } catch {
+      setTasasMsg('Error de conexión')
+    }
+    setTasasGuardando(false)
+    cargarTasas()
   }
 
   const realizarBackup = async (mode = 'local') => {
@@ -505,6 +545,46 @@ export default function Configuracion() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* TIPOS DE CAMBIO DEL DIA */}
+        <div style={s.card(darkMode)} className="animate">
+          <h2 style={s.cardTitle(darkMode)}>Tipos de Cambio del Dia</h2>
+          <p style={s.subtitle(darkMode)}>1 unidad de moneda extranjera = X Guaraníes. Actualice estas tasas cada día (la tasa de frontera cambia seguido). El vuelto siempre se entrega en Guaraníes.</p>
+
+          {tasasCambio.filter(t => t.moneda !== 'PYG').map((t) => (
+            <div key={t.moneda} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <span style={{ width: '80px', fontWeight: '700', fontSize: '14px', color: darkMode ? '#fff' : '#333' }}>
+                {t.simbolo} <span style={{ fontWeight: '400', fontSize: '11px', color: darkMode ? 'rgba(255,255,255,0.5)' : '#888' }}>(1 {t.nombre})</span>
+              </span>
+              <input
+                type="number" min="0" step="0.01"
+                value={t.tasa}
+                onChange={(e) => setTasa(t.moneda, e.target.value)}
+                placeholder="0"
+                style={{ ...s.input(darkMode), width: '130px', textAlign: 'right', fontWeight: '700' }}
+              />
+              <span style={{ color: darkMode ? 'rgba(255,255,255,0.5)' : '#888', fontSize: '12px' }}>Gs</span>
+            </div>
+          ))}
+          {tasasCambio.length === 0 && (
+            <p style={{ color: '#999', fontSize: '12px', textAlign: 'center', padding: '10px' }}>Cargando tasas...</p>
+          )}
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button onClick={guardarTasas} disabled={tasasGuardando} style={{
+              ...s.btn, flex: 1, opacity: tasasGuardando ? 0.5 : 1, marginBottom: 0
+            }}>
+              {tasasGuardando ? 'Guardando...' : 'GUARDAR TASAS'}
+            </button>
+          </div>
+          {tasasMsg && (
+            <div style={{
+              ...s.mensaje,
+              background: tasasMsg.startsWith('✔') ? 'rgba(76,175,80,0.12)' : 'rgba(229,57,53,0.08)',
+              color: tasasMsg.startsWith('✔') ? '#2E7D32' : '#C62828',
+            }}>{tasasMsg}</div>
           )}
         </div>
 

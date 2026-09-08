@@ -1,6 +1,68 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db import models
 from django.utils import timezone
 from apps.usuarios.models import Usuario
+
+
+MONEDAS_SOPORTADAS = [
+    {'codigo': 'PYG', 'nombre': 'Guaraní Paraguayo', 'simbolo': 'Gs'},
+    {'codigo': 'BRL', 'nombre': 'Real Brasileño', 'simbolo': 'R$'},
+    {'codigo': 'USD', 'nombre': 'Dólar Americano', 'simbolo': 'US$'},
+    {'codigo': 'ARS', 'nombre': 'Peso Argentino', 'simbolo': 'AR$'},
+]
+
+MONEDAS_VALIDAS = [m['codigo'] for m in MONEDAS_SOPORTADAS]
+
+
+class TasaCambio(models.Model):
+    """Tasa del día: 1 unidad de moneda extranjera = `tasa` Guaraníes.
+    Se actualiza a diario (la tasa de frontera cambia seguido)."""
+    moneda = models.CharField(max_length=10, unique=True)
+    nombre = models.CharField(max_length=50, blank=True, default='')
+    simbolo = models.CharField(max_length=10, blank=True, default='')
+    tasa = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0,
+        verbose_name='Gs por 1 unidad'
+    )
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'caja_tasas_cambio'
+        verbose_name = 'Tasa de Cambio'
+        verbose_name_plural = 'Tasas de Cambio'
+
+    def __str__(self):
+        return f'{self.moneda}: 1 = {self.tasa} Gs'
+
+
+def tasa_de(moneda):
+    """Tasa vigente para una moneda. PYG siempre = 1.
+    Devuelve 0 para monedas sin tasa configurada (no bloquea el cobro,
+    se guarda el monto tal cual)."""
+    if not moneda or moneda == 'PYG':
+        return 1.0
+    t = TasaCambio.objects.filter(moneda=moneda).first()
+    return float(t.tasa) if t else 0.0
+
+
+def obtener_tasas_cambio():
+    """Devuelve {moneda: tasa} con PYG = 1, para cálculos y arqueos."""
+    tasas = {t.moneda: float(t.tasa) for t in TasaCambio.objects.all()}
+    tasas.setdefault('PYG', 1.0)
+    return tasas
+
+
+def convertir_a_pyg(monto, moneda, tasa=None):
+    """Convierte un monto en moneda extranjera a guaraníes (redondeado a entero).
+    Si la moneda es PYG (o no está definida) devuelve el monto tal cual."""
+    monto = Decimal(str(monto or 0))
+    if not moneda or moneda == 'PYG':
+        return monto
+    t = Decimal(str(tasa)) if tasa is not None else Decimal(str(tasa_de(moneda)))
+    if not t:
+        return Decimal('0')
+    return (monto * t).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
 
 
 class CajaSession(models.Model):
@@ -111,9 +173,11 @@ class MovimientoCaja(models.Model):
         ],
         default='efectivo'
     )
-    monto = models.DecimalField(max_digits=12, decimal_places=0, verbose_name='Monto')
+    monto = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Monto')
     moneda = models.CharField(max_length=10, default='PYG')
     monto_pyg = models.DecimalField(max_digits=12, decimal_places=0, verbose_name='Monto en Gs.')
+    tasa_usada = models.DecimalField(max_digits=14, decimal_places=2, default=0,
+                                     verbose_name='Tasa de cambio usada (Gs por 1 unidad)')
     pedido = models.ForeignKey(
         'pedidos.Pedido',
         on_delete=models.SET_NULL,
@@ -166,6 +230,10 @@ class CorteCaja(models.Model):
     # Arqueo
     denominaciones = models.JSONField(null=True, blank=True,
                                       verbose_name='Conteo de billetes/monedas')
+    totales_por_moneda = models.JSONField(null=True, blank=True,
+                                          verbose_name='Conteo físico por moneda')
+    tasas_aplicadas = models.JSONField(null=True, blank=True,
+                                       verbose_name='Tasas usadas en el arqueo')
     total_contado_efectivo = models.DecimalField(max_digits=12, decimal_places=0, default=0,
                                                   verbose_name='Efectivo contado físicamente')
     total_esperado = models.DecimalField(max_digits=12, decimal_places=0, default=0)

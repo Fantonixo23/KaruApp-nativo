@@ -9,4 +9,6 @@ urlpatterns = [
     path('caja/arqueo', views.arqueo, name='caja_arqueo'),
     path('caja/cierre', views.cierre, name='caja_cierre'),
     path('caja/cortes', views.cortes_lista, name='caja_cortes'),
+    path('caja/tasas-cambio', views.tasas_cambio, name='caja_tasas_cambio'),
+    path('caja/tasas-cambio/actualizar', views.tasas_cambio_actualizar, name='caja_tasas_cambio_actualizar'),
 ]

@@ -231,7 +231,20 @@ function buildTicketFactura(pedido, negocio, cliente, numero) {
   if (pedido?.metodo_pago) {
     const metodoLabels = { efectivo: 'Efectivo', tarjeta: 'Tarjeta', transferencia: 'Transferencia', qr: 'QR', mixto: 'Mixto' }
     data += _row('Pago:', metodoLabels[pedido.metodo_pago] || pedido.metodo_pago)
-    if (pedido?.monto_recibido > 0) data += _row('Recibido:', _formatGuarani(pedido.monto_recibido))
+    if (Array.isArray(pedido?.detalle_pagos) && pedido.detalle_pagos.length > 0) {
+      pedido.detalle_pagos.forEach(p => {
+        const monedaExt = p.moneda && p.moneda !== 'PYG'
+        const etiqueta = metodoLabels[p.metodo] || p.metodo || 'Pago'
+        if (monedaExt) {
+          data += _row(`${etiqueta} (${p.moneda}):`, Number(p.monto || 0).toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+          data += _row(`Eq. Gs (TC ${p.tasa ?? ''}):`, _formatGuarani(p.monto_pyg || 0))
+        } else {
+          data += _row(`${etiqueta}:`, _formatGuarani(p.monto_pyg ?? p.monto ?? 0))
+        }
+      })
+    } else {
+      if (pedido?.monto_recibido > 0) data += _row('Recibido:', _formatGuarani(pedido.monto_recibido))
+    }
     if (pedido?.vuelto > 0) data += _bold('VUELTO: ' + _formatGuarani(pedido.vuelto))
   }
 
@@ -569,6 +582,21 @@ function buildCorteCaja(corte, empresa, cajero) {
 
   data += _row('ESPERADO:', _formatGuarani(corte?.total_esperado))
   data += _row('CONTADO:', _formatGuarani(corte?.total_contado_efectivo))
+
+  if (corte?.totales_por_moneda && Object.keys(corte.totales_por_moneda).length > 0) {
+    data += _bold('ARQUEO FISICO')
+    Object.entries(corte.totales_por_moneda).forEach(([mon, monto]) => {
+      if (mon === 'PYG') {
+        data += _row('Gs:', _formatGuarani(monto))
+      } else {
+        const tasa = corte.tasas_aplicadas?.[mon] || 0
+        const ext = Number(monto).toLocaleString('es-PY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        data += _row(`${mon}:`, `${ext}`)
+        data += _row(`Eq. Gs (TC ${tasa}):`, _formatGuarani(monto * tasa))
+      }
+    })
+  }
+
   const tipo = corte?.tipo_diferencia
   const etiqueta = tipo === 'sobrante' ? 'SOBRANTE' : tipo === 'faltante' ? 'FALTANTE' : 'DIFERENCIA'
   const signo = Number(corte?.diferencia) > 0 ? '+' : ''

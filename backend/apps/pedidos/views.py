@@ -817,7 +817,12 @@ def pagar_pedido(request, pk):
         comprobante_nro = data.get('comprobante_nro', '')
         marca_qr = data.get('marca_qr', '')
         cuotas = data.get('cuotas', 1)
-        
+        moneda_pago = data.get('moneda', 'PYG') or 'PYG'
+        monto_recibido = float(data.get('monto_recibido', 0) or 0)
+        pagos = data.get('pagos')
+
+        from apps.caja.models import convertir_a_pyg, tasa_de
+
         session = CajaSession.objects.filter(estado='abierta').first()
         if not session:
             return JsonResponse({
@@ -855,10 +860,12 @@ def pagar_pedido(request, pk):
             pedido.marca_qr = marca_qr
             pedido.cuotas = cuotas
             pedido.tipo_iva = tipo_iva
+            if pagos:
+                pedido.detalle_pagos = pagos
             pedido.save()
-            
+
             descontar_inventario(pedido.items)
-            
+
             if pedido.mesa:
                 otros_activos = Pedido.objects.filter(
                     mesa=pedido.mesa,
@@ -866,32 +873,57 @@ def pagar_pedido(request, pk):
                 ).exclude(pk=pedido.pk).exists()
                 if not otros_activos:
                     pedido.mesa.sincronizar_estado()
-            
-            total_con_propina = Decimal(str(pedido.total)) + Decimal(str(propinas))
+
+            total_con_propina = float(pedido.total) + float(propinas)
             usuario_obj = Usuario.objects.filter(pk=usuario_id).first() if usuario_id else None
-            
+
             metodo_pago_str = pedido.metodo_pago if isinstance(pedido.metodo_pago, str) else 'efectivo'
+
+            # Moneda de pago: puede venir en otra moneda (BRL/USD/ARS).
+            # monto_pyg se calcula con la tasa vigente AL MOMENTO del cobro y se
+            # guarda (tasa_usada) para no recalcularlo nunca más.
+            tasa_pago = tasa_de(moneda_pago)
+            if moneda_pago == 'PYG':
+                monto_mov = total_con_propina
+                monto_pyg_mov = total_con_propina
+            elif monto_recibido > 0:
+                monto_mov = monto_recibido
+                monto_pyg_mov = float(convertir_a_pyg(monto_recibido, moneda_pago, tasa_pago))
+            else:
+                monto_mov = round(total_con_propina / tasa_pago, 2) if tasa_pago else total_con_propina
+                monto_pyg_mov = total_con_propina
+
+            # Regla de vuelto: siempre se entrega en Guaraníes.
+            vuelto_mov = 0
+            if metodo_pago_str == 'efectivo' and monto_recibido > 0:
+                received_pyg = float(convertir_a_pyg(monto_recibido, moneda_pago, tasa_pago))
+                vuelto_mov = max(0, received_pyg - total_con_propina)
+
             MovimientoCaja.objects.create(
                 session=session,
                 tipo='venta',
                 metodo_pago=metodo_pago_str,
-                monto=total_con_propina,
-                moneda='PYG',
-                monto_pyg=total_con_propina,
+                monto=Decimal(str(monto_mov)),
+                moneda=moneda_pago,
+                monto_pyg=Decimal(str(monto_pyg_mov)),
+                tasa_usada=Decimal(str(tasa_pago)),
                 pedido=pedido,
                 propina=Decimal(str(propinas)),
-                vuelto=Decimal('0'),
+                vuelto=Decimal(str(vuelto_mov)),
                 usuario=usuario_obj,
             )
-            
+
             return JsonResponse({
                 'success': True,
+                'vuelto': vuelto_mov,
+                'moneda': moneda_pago,
                 'pedido': {
                     'id': pedido.id,
                     'estado': pedido.estado,
                     'metodo_pago': pedido.metodo_pago,
                     'propina': str(pedido.propina or 0),
-                    'total': str(pedido.total)
+                    'total': str(pedido.total),
+                    'vuelto': str(vuelto_mov),
                 }
             })
     except Exception as e:
@@ -987,6 +1019,10 @@ def cobrar_mesa(request, mesa_id):
             ids_cobrados = []
             vuelto = 0
             monto_recibido = float(data.get('monto_recibido', 0))
+            moneda_pago = data.get('moneda', 'PYG') or 'PYG'
+
+            from apps.caja.models import convertir_a_pyg, tasa_de
+            tasa_pago = tasa_de(moneda_pago)
 
             # Normalizar metodo_pago a valores permitidos
             metodo_pago_str = 'efectivo'
@@ -1041,16 +1077,26 @@ def cobrar_mesa(request, mesa_id):
                 ids_cobrados.append(pedido.id)
                 descontar_inventario(pedido.items)
 
-                # Crear un MovimientoCaja por cada pedido (excepto mixto que se maneja aparte)
+                # Crear un MovimientoCaja por cada pedido (excepto mixto que se maneja aparte).
+                # Si el pago viene en otra moneda, cada pedido distribuye su
+                # equivalente en esa moneda y el sistema guarda monto_pyg y la
+                # tasa usada para no recalcular nunca más.
                 if metodo_pago_str != 'mixto':
                     monto_mov = float(pedido.total) + float(pedido.propina)
+                    if moneda_pago == 'PYG':
+                        monto_caja = monto_mov
+                        monto_pyg_mov = monto_mov
+                    else:
+                        monto_caja = round(monto_mov / tasa_pago, 2) if tasa_pago else monto_mov
+                        monto_pyg_mov = monto_mov
                     MovimientoCaja.objects.create(
                         session=session,
                         tipo='venta',
                         metodo_pago=metodo_pago_str,
-                        monto=monto_mov,
-                        moneda='PYG',
-                        monto_pyg=monto_mov,
+                        monto=Decimal(str(monto_caja)),
+                        moneda=moneda_pago,
+                        monto_pyg=Decimal(str(monto_pyg_mov)),
+                        tasa_usada=Decimal(str(tasa_pago)),
                         pedido=pedido,
                         propina=float(pedido.propina),
                         vuelto=0,
@@ -1059,23 +1105,37 @@ def cobrar_mesa(request, mesa_id):
 
             total_con_propina = total_cobrado + float(propinas)
 
-            # Calcular vuelto para efectivo
+            # Calcular vuelto para efectivo.
+            # Regla de negocio: el vuelto SIEMPRE se entrega en Guaraníes,
+            # sin importar en qué moneda pagó el cliente. El monto recibido se
+            # convierte a Gs con la tasa del momento para calcularlo.
             if metodo_pago_str == 'efectivo' and monto_recibido > 0:
-                vuelto = monto_recibido - total_con_propina
+                recibido_pyg = float(convertir_a_pyg(monto_recibido, moneda_pago, tasa_pago))
+                vuelto = recibido_pyg - total_con_propina
                 if vuelto < 0:
                     vuelto = 0
 
-            # Para mixto: crear un MovimientoCaja por cada pago (despues del loop)
+            # Para mixto: crear un MovimientoCaja por cada pago (despues del loop).
+            # monto_pyg se calcula en el backend con la tasa vigente (nunca se
+            # confía ciegamente en el valor que manda la UI).
             if metodo_pago_str == 'mixto' and pagos:
                 for i, pago in enumerate(pagos):
                     pago_metodo = normalizar_metodo_pago(pago.get('metodo', 'efectivo'))
+                    pago_moneda = pago.get('moneda', 'PYG') or 'PYG'
+                    pago_monto = float(pago.get('monto', 0) or 0)
+                    pago_tasa = tasa_de(pago_moneda)
+                    if pago_moneda == 'PYG':
+                        pago_monto_pyg = pago_monto
+                    else:
+                        pago_monto_pyg = float(convertir_a_pyg(pago_monto, pago_moneda, pago_tasa))
                     MovimientoCaja.objects.create(
                         session=session,
                         tipo='venta',
                         metodo_pago=pago_metodo,
-                        monto=float(pago.get('monto', 0)),
-                        moneda=pago.get('moneda', 'PYG'),
-                        monto_pyg=float(pago.get('monto_pyg', 0)),
+                        monto=Decimal(str(pago_monto)),
+                        moneda=pago_moneda,
+                        monto_pyg=Decimal(str(pago_monto_pyg)),
+                        tasa_usada=Decimal(str(pago_tasa)),
                         pedido=None,
                         detalle_pagos=pagos,
                         propina=propinas if i == 0 else 0,
@@ -1165,6 +1225,8 @@ def cobrar_mesa(request, mesa_id):
                 'total_cobrado': str(total_cobrado),
                 'total_con_propina': str(total_con_propina),
                 'monto_recibido': monto_recibido,
+                'moneda': moneda_pago,
+                'detalle_pagos': pagos,
                 'vuelto': vuelto,
                 'numero_factura': factura_data.get('numero', len(ids_cobrados)) if isinstance(factura_data, dict) else len(ids_cobrados),
                 'factura': factura_data or {},

@@ -4,11 +4,34 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from apps.usuarios.decorators import requiere_autenticacion, requiere_rol
-from .models import CajaSession, MovimientoCaja, CorteCaja
+from .models import (
+    CajaSession, MovimientoCaja, CorteCaja,
+    MONEDAS_SOPORTADAS, TasaCambio, convertir_a_pyg,
+    obtener_tasas_cambio, tasa_de,
+)
 
 
 def _get_session_abierta():
     return CajaSession.objects.filter(estado='abierta').first()
+
+
+def _procesar_arqueo(denominaciones):
+    """Cuenta el físico por moneda y lo convierte a Gs con la tasa vigente.
+    Devuelve (por_moneda, total_gs, tasas_usadas)."""
+    por_moneda = {}
+    tasas = obtener_tasas_cambio()
+    for d in denominaciones or []:
+        moneda = d.get('moneda', 'PYG')
+        valor = float(d.get('valor', 0) or 0)
+        cantidad = float(d.get('cantidad', 0) or 0)
+        por_moneda[moneda] = por_moneda.get(moneda, 0) + valor * cantidad
+    total_gs = 0
+    tasas_usadas = {}
+    for moneda, monto in por_moneda.items():
+        tasa = tasas.get(moneda, 0)
+        tasas_usadas[moneda] = tasa
+        total_gs += monto * tasa
+    return por_moneda, round(total_gs), tasas_usadas
 
 
 @csrf_exempt
@@ -185,7 +208,10 @@ def movimientos_lista(request):
         'id': m.id,
         'tipo': m.tipo,
         'metodo_pago': m.metodo_pago,
+        'monto': float(m.monto),
+        'moneda': m.moneda,
         'monto_pyg': float(m.monto_pyg),
+        'tasa_usada': float(m.tasa_usada) if m.tasa_usada else 0,
         'propina': float(m.propina),
         'vuelto': float(m.vuelto),
         'motivo': m.motivo,
@@ -198,11 +224,75 @@ def movimientos_lista(request):
     return JsonResponse({'success': True, 'movimientos': data})
 
 
+@require_http_methods(["GET"])
+@requiere_autenticacion
+def tasas_cambio(request):
+    """Devuelve las tasas del día para todas las monedas soportadas."""
+    tasas = {t.moneda: float(t.tasa) for t in TasaCambio.objects.all()}
+    data = [
+        {
+            'moneda': m['codigo'],
+            'nombre': m['nombre'],
+            'simbolo': m['simbolo'],
+            'tasa': tasas.get(m['codigo'], 0),
+        }
+        for m in MONEDAS_SOPORTADAS
+    ]
+    return JsonResponse({'success': True, 'tasas': data})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@requiere_autenticacion
+def tasas_cambio_actualizar(request):
+    """Actualiza las tasas del día. Body: {'BRL': 900, 'USD': 7500, 'ARS': 8}"""
+    try:
+        data = json.loads(request.body)
+        actualizadas = []
+        for moneda_info in MONEDAS_SOPORTADAS:
+            codigo = moneda_info['codigo']
+            if codigo == 'PYG':
+                continue
+            valor = data.get(codigo)
+            if valor is None:
+                continue
+            try:
+                tasa = float(valor)
+            except (TypeError, ValueError):
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Tasa inválida para {codigo}'
+                }, status=400)
+            if tasa <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'La tasa de {codigo} debe ser mayor a 0'
+                }, status=400)
+            obj, _ = TasaCambio.objects.update_or_create(
+                moneda=codigo,
+                defaults={
+                    'nombre': moneda_info['nombre'],
+                    'simbolo': moneda_info['simbolo'],
+                    'tasa': tasa,
+                }
+            )
+            actualizadas.append({'moneda': codigo, 'tasa': float(obj.tasa)})
+        if not actualizadas:
+            return JsonResponse({
+                'success': False,
+                'error': 'No se recibió ninguna tasa para actualizar'
+            }, status=400)
+        return JsonResponse({'success': True, 'tasas': actualizadas})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 @requiere_autenticacion
 def arqueo(request):
-    """Registra conteo físico de billetes/monedas (sin cerrar caja - Reporte X)"""
+    """Registra conteo físico de billetes/monedas (sin cerrar caja - Reporte X).
+    Las denominaciones incluyen moneda: [{moneda, valor, cantidad}, ...]"""
     try:
         session = _get_session_abierta()
         if not session:
@@ -212,7 +302,8 @@ def arqueo(request):
 
         data = json.loads(request.body)
         denominaciones = data.get('denominaciones', [])
-        total_contado = sum(int(d.get('valor', 0)) * int(d.get('cantidad', 0)) for d in denominaciones)
+
+        por_moneda, total_contado, tasas_usadas = _procesar_arqueo(denominaciones)
 
         efectivo_esperado = session.efectivo_esperado()
         diferencia = total_contado - efectivo_esperado
@@ -221,6 +312,8 @@ def arqueo(request):
             'success': True,
             'arqueo': {
                 'denominaciones': denominaciones,
+                'totales_por_moneda': por_moneda,
+                'tasas_aplicadas': tasas_usadas,
                 'total_contado': total_contado,
                 'total_esperado': efectivo_esperado,
                 'diferencia': diferencia,
@@ -254,7 +347,9 @@ def cierre(request):
         observaciones = data.get('observaciones', '')
         usuario_id = data.get('usuario_id')
 
-        total_contado = sum(int(d.get('valor', 0)) * int(d.get('cantidad', 0)) for d in denominaciones)
+        # Arqueo multi-moneda: cuenta cada moneda por separado y convierte a Gs
+        # con la tasa vigente en el momento del cierre.
+        por_moneda, total_contado, tasas_usadas = _procesar_arqueo(denominaciones)
         efectivo_esperado = session.efectivo_esperado()
         diferencia = total_contado - efectivo_esperado
 
@@ -285,6 +380,8 @@ def cierre(request):
             total_propinas=total_propinas_monto,
             total_ventas=total_ventas,
             denominaciones=denominaciones,
+            totales_por_moneda=por_moneda,
+            tasas_aplicadas=tasas_usadas,
             total_contado_efectivo=total_contado,
             total_esperado=efectivo_esperado,
             diferencia=diferencia,
@@ -308,6 +405,8 @@ def cierre(request):
                 'total_propinas': float(corte.total_propinas),
                 'total_ventas': float(corte.total_ventas),
                 'denominaciones': denominaciones,
+                'totales_por_moneda': por_moneda,
+                'tasas_aplicadas': tasas_usadas,
                 'total_contado_efectivo': total_contado,
                 'total_esperado': efectivo_esperado,
                 'diferencia': diferencia,
@@ -331,6 +430,8 @@ def cortes_lista(request):
         'usuario_cierre': c.usuario_cierre.nombre if c.usuario_cierre else '?',
         'fondo_inicial': float(c.fondo_inicial),
         'total_ventas': float(c.total_ventas),
+        'totales_por_moneda': c.totales_por_moneda,
+        'tasas_aplicadas': c.tasas_aplicadas,
         'total_contado_efectivo': float(c.total_contado_efectivo),
         'diferencia': float(c.diferencia),
         'tipo_diferencia': c.tipo_diferencia,

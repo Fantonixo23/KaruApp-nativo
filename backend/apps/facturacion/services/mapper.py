@@ -74,6 +74,13 @@ def _condicion_pago(pedido, total_cobrado):
             "moneda": "PYG",
             "cambio": 0,
         })
+    # SIFEN exige que la suma de entregas coincida con el total. Si el cliente
+    # pagó de más (vuelto devuelto en Gs) o quedó un redondeo de conversión,
+    # ajustamos la última entrega para que nunca rechace la factura.
+    total_entregas = sum(int(Decimal(str(e['monto']))) for e in entregas)
+    diff = total_entregas - int(total_cobrado)
+    if entregas and diff != 0:
+        entregas[-1]['monto'] = str(int(Decimal(str(entregas[-1]['monto']))) - diff)
     return {"tipo": 1, "entregas": entregas}
 
 

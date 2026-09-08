@@ -109,6 +109,19 @@ class LicenseManager:
             'ultima_verificacion': datetime.now().isoformat(),
         }
 
+    def _parse_date(self, value):
+        """Parsea una fecha (YYYY-MM-DD o ISO) a date"""
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(str(value)).date()
+        except ValueError:
+            pass
+        try:
+            return datetime.strptime(str(value), '%Y-%m-%d').date()
+        except ValueError:
+            return None
+
     def _check_offline_grace(self, cache):
         """Verifica si la tolerancia offline ha expirado"""
         ultima = cache.get('ultima_verificacion')
@@ -116,9 +129,26 @@ class LicenseManager:
             return cache
         try:
             ult = datetime.fromisoformat(ultima)
-            offline_grace_dias = cache.get('offline_grace_dias', 3)
+            offline_grace_dias = cache.get('offline_grace_dias', 7)
             limite = ult + timedelta(days=offline_grace_dias)
             if datetime.now() > limite:
+                # No bloquear si la licencia pagada aún está vigente.
+                # Ej: el cliente estuvo de vacaciones sin conexión, pero la
+                # licencia sigue pagada -> no debe quedar bloqueado.
+                paid_until = cache.get('paid_until')
+                fecha_pago = self._parse_date(paid_until)
+                if fecha_pago and fecha_pago >= datetime.now().date():
+                    dias_restantes = (fecha_pago - datetime.now().date()).days
+                    cache['estado'] = 'activa'
+                    cache['dias_restantes'] = dias_restantes
+                    cache['mensaje'] = f'🟡 Sin conexión - Licencia vigente hasta {fecha_pago} (se revalidará al conectar)'
+                    cache['online'] = False
+                    cache['bloqueado'] = False
+                    logger.warning(
+                        f"Tolerancia offline expirada ({offline_grace_dias} días) pero licencia "
+                        f"vigente hasta {fecha_pago}; se mantiene activa en modo offline"
+                    )
+                    return cache
                 logger.warning(f"Tolerancia offline expirada ({offline_grace_dias} días sin conexión)")
                 return {
                     'estado': 'bloqueada',
